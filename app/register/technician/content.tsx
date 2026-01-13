@@ -4,11 +4,16 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { X } from "lucide-react"
 
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+
 export default function TechnicianRegisterContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const phone = searchParams.get("phone")
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+
   const [formData, setFormData] = useState({
     name: "",
     dob: "",
@@ -17,15 +22,30 @@ export default function TechnicianRegisterContent() {
     experience: "",
     primarySkill: "",
     dailyRate: "",
+    bankName: "",
+    accountHolder: "",
+    accountNumber: "",
+    ifsc: "",
+    upi: ""
   })
 
   const handleNext = () => {
     if (step < 4) setStep(step + 1)
   }
 
-  const handleSubmit = () => {
-    console.log("[v0] Technician registration:", { phone, ...formData })
-    router.push("/technician/pending")
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    try {
+      const res = await api.registerTechnician({ phone, ...formData })
+      if (res.success) {
+        toast.success("Application submitted!")
+        router.push("/technician/pending")
+      }
+    } catch (e) {
+      toast.error("Registration failed")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -136,26 +156,36 @@ export default function TechnicianRegisterContent() {
             type="text"
             placeholder="Bank Name"
             className="w-full px-4 py-3 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            value={formData.bankName}
+            onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
           />
           <input
             type="text"
             placeholder="Account Holder Name"
             className="w-full px-4 py-3 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            value={formData.accountHolder}
+            onChange={(e) => setFormData({ ...formData, accountHolder: e.target.value })}
           />
           <input
             type="text"
             placeholder="Account Number"
             className="w-full px-4 py-3 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            value={formData.accountNumber}
+            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
           />
           <input
             type="text"
             placeholder="IFSC Code"
             className="w-full px-4 py-3 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            value={formData.ifsc}
+            onChange={(e) => setFormData({ ...formData, ifsc: e.target.value })}
           />
           <input
             type="text"
             placeholder="UPI ID (Optional)"
             className="w-full px-4 py-3 rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+            value={formData.upi}
+            onChange={(e) => setFormData({ ...formData, upi: e.target.value })}
           />
         </div>
       )}
@@ -179,9 +209,10 @@ export default function TechnicianRegisterContent() {
         ) : (
           <button
             onClick={handleSubmit}
-            className="flex-1 py-3 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
+            disabled={isLoading}
+            className="flex-1 py-3 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors flex items-center justify-center"
           >
-            Submit
+            {isLoading ? "Submitting..." : "Submit"}
           </button>
         )}
       </div>

@@ -108,52 +108,52 @@ export const api = {
 
   async verifyOTP(phone: string, otp: string) {
     await delay(DELAY_MS)
-    
+
     // Mock user roles based on phone numbers
     let role: "company" | "technician" | "admin" = "company"
     let name = "New User"
-    
+
     if (phone === "9876543210") {
-        role = "company"
-        name = "ABC Industries"
+      role = "company"
+      name = "ABC Industries"
     } else if (phone === "9876543211") {
-        role = "admin"
-        name = "Admin User"
+      role = "admin"
+      name = "Admin User"
     } else if (phone === "9876543212") {
-        role = "technician"
-        name = "Raj Kumar"
+      role = "technician"
+      name = "Raj Kumar"
     } else if (phone === "9876543213") {
-        role = "admin" // Super admin
+      role = "admin" // Super admin
     }
 
     // Check if user exists in our "db", else create
     // For simplicity in this mock, we just return the determined role
     const user = {
-        id: `USER-${phone.slice(-4)}`,
-        phone,
-        role,
-        name
+      id: `USER-${phone.slice(-4)}`,
+      phone,
+      role,
+      name
     }
-    
+
     // Store current session
     if (typeof window !== "undefined") {
       localStorage.setItem("currentUser", JSON.stringify(user))
     }
-    
+
     return { success: true, role, user }
   },
-  
+
   async getCurrentUser() {
-      if (typeof window === "undefined") return null
-      const userStr = localStorage.getItem("currentUser")
-      return userStr ? JSON.parse(userStr) : null
+    if (typeof window === "undefined") return null
+    const userStr = localStorage.getItem("currentUser")
+    return userStr ? JSON.parse(userStr) : null
   },
-  
+
   async logout() {
-      if (typeof window !== "undefined") {
-          localStorage.removeItem("currentUser")
-      }
-      return { success: true }
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("currentUser")
+    }
+    return { success: true }
   },
 
   // Company
@@ -161,8 +161,8 @@ export const api = {
     await delay(DELAY_MS)
     const user = { ...data, role: "company", id: `COMP-${Date.now()}` }
     if (typeof window !== "undefined") {
-        localStorage.setItem("currentUser", JSON.stringify(user))
-        // Could store in a 'users' collection too
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      // Could store in a 'users' collection too
     }
     return { success: true, user }
   },
@@ -177,21 +177,21 @@ export const api = {
   async createRequest(data: any) {
     await delay(DELAY_MS)
     const newRequest = {
-        id: `REQ-${Math.floor(Math.random() * 10000)}`,
-        status: "New",
-        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-        createdAt: Date.now(),
-        ...data
+      id: `REQ-${Math.floor(Math.random() * 10000)}`,
+      status: "New",
+      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      createdAt: Date.now(),
+      ...data
     }
     DB.add("requests", newRequest)
     return { success: true, id: newRequest.id }
   },
 
   async getRequestById(id: string) {
-      await delay(DELAY_MS)
-      const requests = DB.get("requests")
-      const req = requests.find((r: any) => r.id === id)
-      return { request: req }
+    await delay(DELAY_MS)
+    const requests = DB.get("requests")
+    const req = requests.find((r: any) => r.id === id)
+    return { request: req }
   },
 
   // Job / Technician
@@ -199,58 +199,95 @@ export const api = {
     await delay(DELAY_MS)
     const user = { ...data, role: "technician", status: "pending", id: `TECH-${Date.now()}` }
     if (typeof window !== "undefined") {
-        localStorage.setItem("currentUser", JSON.stringify(user))
-        DB.add("technicians", user)
+      localStorage.setItem("currentUser", JSON.stringify(user))
+      DB.add("technicians", user)
     }
     return { success: true, user }
   },
 
   async getJobs(filters?: any) {
     await delay(DELAY_MS)
-    // For now returning mock jobs
+    const requests = DB.get("requests")
+    // Map assigned/active requests to jobs
+    const dynamicJobs = requests
+      .filter((r: any) => r.status !== 'New' && r.status !== 'Cancelled')
+      .map((r: any) => ({
+        id: r.id,
+        requestId: r.id,
+        technicianId: "TECH-MOCK-001", // Mock association
+        company: r.companyName || r.companyId,
+        service: r.type,
+        status: r.status === 'Assigned' ? 'Pending' : r.status, // Map Request Status to Job Status
+        location: "Mock Location", // We don't have location on request yet
+        time: r.timeSlot || "09:00 AM",
+        date: r.date
+      }))
+
+    const mockJobs = [
+      {
+        id: "JOB-001",
+        requestId: "REQ-MOCK-001",
+        technicianId: "TECH-MOCK-001",
+        company: "ABC Industries",
+        service: "Electrical",
+        status: "Pending" as const,
+        location: "Industrial Area, Phase 1",
+        time: "09:00 AM",
+        date: "Today"
+      }
+    ]
+
     return {
-      jobs: [
-        {
-          id: "JOB-001",
-          company: "ABC Industries",
-          service: "Electrical",
-          status: "Pending",
-          location: "Industrial Area, Phase 1",
-          time: "09:00 AM",
-          date: "Today"
-        },
-        {
-          id: "JOB-002",
-          company: "XYZ Corp",
-          service: "HVAC",
-          status: "Completed",
-          location: "Tech Park, B-Block",
-          time: "02:00 PM",
-           date: "Yesterday"
-        }
-      ],
+      jobs: [...dynamicJobs, ...mockJobs]
     }
   },
 
   async getJobById(id: string) {
-      await delay(DELAY_MS)
-      // Mock details
+    await delay(DELAY_MS)
+
+    // Try to find in dynamic requests first
+    const requests = DB.get("requests")
+    const req = requests.find((r: any) => r.id === id)
+
+    if (req) {
       return {
-          job: {
-              id,
-              company: "ABC Industries",
-              address: "Plot 45, Industrial Area, Phase 1",
-              service: "Electrical",
-              description: "Main circuit breaker tripping repeatedly. Urgent fix needed.",
-              supervisor: "Mr. Sharma",
-              supervisorPhone: "9876543200",
-              team: [
-                  { name: "Raj Kumar", role: "Lead", photo: "" },
-                  { name: "Amit Singh", role: "Member", photo: "" }
-              ],
-              status: "Active"
-          }
+        job: {
+          id: req.id,
+          requestId: req.id,
+          technicianId: "TECH-MOCK-001",
+          company: req.companyName || req.companyId,
+          address: "Mock Address",
+          service: req.type,
+          description: req.description,
+          supervisor: req.supervisor || "N/A",
+          supervisorPhone: req.supervisorPhone || "N/A",
+          team: [
+            { name: "Raj Kumar", role: "Lead", photo: "" }
+          ],
+          status: (req.status === 'Assigned' ? 'Pending' : req.status) as any
+        }
       }
+    }
+
+    // Mock details fallback
+    return {
+      job: {
+        id,
+        requestId: "REQ-MOCK-001",
+        technicianId: "TECH-MOCK-001",
+        company: "ABC Industries",
+        address: "Plot 45, Industrial Area, Phase 1",
+        service: "Electrical",
+        description: "Main circuit breaker tripping repeatedly. Urgent fix needed.",
+        supervisor: "Mr. Sharma",
+        supervisorPhone: "9876543200",
+        team: [
+          { name: "Raj Kumar", role: "Lead", photo: "" },
+          { name: "Amit Singh", role: "Member", photo: "" }
+        ],
+        status: "In Progress" as "In Progress" | "Pending" | "Accepted" | "Completed"
+      }
+    }
   },
 
   async acceptJob(jobId: string) {
@@ -262,22 +299,22 @@ export const api = {
     await delay(DELAY_MS)
     return { success: true }
   },
-  
+
   async updateJobStatus(jobId: string, status: string, notes?: string) {
-      await delay(DELAY_MS)
-      return { success: true }
+    await delay(DELAY_MS)
+    return { success: true }
   },
-  
+
   async completeJob(jobId: string, signature: string) {
-      await delay(DELAY_MS)
-      return { success: true }
+    await delay(DELAY_MS)
+    return { success: true }
   },
 
   // Admin
   async getRequests(filters?: any) {
-      await delay(DELAY_MS)
-      const requests = DB.get("requests")
-      return { requests }
+    await delay(DELAY_MS)
+    const requests = DB.get("requests")
+    return { requests }
   },
 
   async assignTeam(jobId: string, techIds: string[], leadId: string) {
@@ -287,23 +324,23 @@ export const api = {
     // In real app, we would create a Job entry
     const reqIndex = requests.findIndex((r: any) => r.id === jobId)
     if (reqIndex >= 0) {
-        DB.update("requests", jobId, { status: "Assigned" })
+      DB.update("requests", jobId, { status: "Assigned" })
     }
     return { success: true }
   },
-  
+
   async getTechnicians(filters?: string) {
-      await delay(DELAY_MS)
-      // Return some mock technicians if empty
-      let techs = DB.get("technicians")
-      if (techs.length === 0) {
-          techs = [
-              { id: "T1", name: "Raj Kumar", skill: "Electrical", status: "Active", rating: 4.8 },
-              { id: "T2", name: "Amit Singh", skill: "Mechanical", status: "Active", rating: 4.5 },
-              { id: "T3", name: "Sunil Verma", skill: "Plumbing", status: "Pending", rating: 0 },
-          ]
-      }
-      return { technicians: techs }
+    await delay(DELAY_MS)
+    // Return some mock technicians if empty
+    let techs = DB.get("technicians")
+    if (techs.length === 0) {
+      techs = [
+        { id: "T1", name: "Raj Kumar", skill: "Electrical", status: "Active", rating: 4.8 },
+        { id: "T2", name: "Amit Singh", skill: "Mechanical", status: "Active", rating: 4.5 },
+        { id: "T3", name: "Sunil Verma", skill: "Plumbing", status: "Pending", rating: 0 },
+      ]
+    }
+    return { technicians: techs }
   },
 
   async approveTechnician(techId: string) {
@@ -311,11 +348,11 @@ export const api = {
     DB.update("technicians", techId, { status: "Active" })
     return { success: true }
   },
-  
+
   async rejectTechnician(techId: string, reason: string) {
-      await delay(DELAY_MS)
-      DB.update("technicians", techId, { status: "Rejected", reason })
-      return { success: true }
+    await delay(DELAY_MS)
+    DB.update("technicians", techId, { status: "Rejected", reason })
+    return { success: true }
   },
 
   async getSalaryData(period: string) {

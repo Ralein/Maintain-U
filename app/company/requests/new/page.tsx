@@ -2,10 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
 export default function NewRequestPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     serviceType: "",
     priority: "Normal",
@@ -29,9 +33,19 @@ export default function NewRequestPage() {
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSubmit = () => {
-    console.log("Form submitted:", formData)
-    router.push("/company/requests/success")
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    try {
+      const res = await api.createRequest(formData)
+      if (res.success) {
+        toast.success("Request created successfully")
+        router.push(`/company/requests/${res.id}`)
+      }
+    } catch (e) {
+      toast.error("Failed to create request")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -62,18 +76,17 @@ export default function NewRequestPage() {
 
           <div className="space-y-3 mb-8">
             {[
-              { id: "electrical", label: "Electrical", icon: "⚡" },
-              { id: "mechanical", label: "Mechanical", icon: "⚙️" },
-              { id: "assembly", label: "Assembly", icon: "🔧" },
-              { id: "hvac", label: "HVAC", icon: "🌡️" },
-              { id: "plumbing", label: "Plumbing", icon: "🔩" },
+              { id: "Electrical", label: "Electrical", icon: "⚡" },
+              { id: "Mechanical", label: "Mechanical", icon: "⚙️" },
+              { id: "Assembly", label: "Assembly", icon: "🔧" },
+              { id: "HVAC", label: "HVAC", icon: "🌡️" },
+              { id: "Plumbing", label: "Plumbing", icon: "🔩" },
             ].map((service) => (
               <button
                 key={service.id}
                 onClick={() => handleServiceSelect(service.id)}
-                className={`backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5 w-full flex items-center gap-4 text-left transition-all ${
-                  formData.serviceType === service.id ? "bg-blue-500/30 border-blue-400/50" : "hover:bg-white/15"
-                }`}
+                className={`backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5 w-full flex items-center gap-4 text-left transition-all ${formData.serviceType === service.id ? "bg-blue-500/30 border-blue-400/50" : "hover:bg-white/15"
+                  }`}
               >
                 <span className="text-3xl">{service.icon}</span>
                 <span className="font-semibold text-white">{service.label}</span>
@@ -89,15 +102,14 @@ export default function NewRequestPage() {
                 <button
                   key={priority}
                   onClick={() => setFormData({ ...formData, priority })}
-                  className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
-                    formData.priority === priority
+                  className={`flex-1 py-3 rounded-lg font-semibold transition-all ${formData.priority === priority
                       ? priority === "Normal"
                         ? "backdrop-blur-md bg-green-500/30 border border-green-400/50 text-green-300"
                         : priority === "Urgent"
                           ? "backdrop-blur-md bg-yellow-500/30 border border-yellow-400/50 text-yellow-300"
                           : "backdrop-blur-md bg-red-500/30 border border-red-400/50 text-red-300"
                       : "backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 text-slate-300"
-                  }`}
+                    }`}
                 >
                   {priority}
                 </button>
@@ -142,6 +154,8 @@ export default function NewRequestPage() {
               <input
                 type="date"
                 className="backdrop-blur-sm bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white w-full"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
               />
             </div>
 
@@ -152,11 +166,10 @@ export default function NewRequestPage() {
                   <button
                     key={slot}
                     onClick={() => setFormData({ ...formData, timeSlot: slot })}
-                    className={`py-3 rounded-lg font-semibold transition-all ${
-                      formData.timeSlot === slot
+                    className={`py-3 rounded-lg font-semibold transition-all ${formData.timeSlot === slot
                         ? "backdrop-blur-md bg-blue-500/30 border border-blue-400/50 text-blue-300"
                         : "backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 text-slate-300"
-                    }`}
+                      }`}
                   >
                     {slot}
                   </button>
@@ -238,9 +251,11 @@ export default function NewRequestPage() {
         ) : (
           <button
             onClick={handleSubmit}
-            className="backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 flex-1"
+            disabled={isLoading}
+            className="backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 flex-1 flex items-center justify-center gap-2"
           >
-            Submit Request
+            {isLoading && <Loader2 className="w-4 h-4 animate-spin text-white" />}
+            {isLoading ? "Submitting..." : "Submit Request"}
           </button>
         )}
       </div>

@@ -2,23 +2,46 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Phone, CheckCircle2 } from "lucide-react"
+import { Phone, CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
+import { api, Job } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function ActiveJobPage({ params }: { params: { id: string } }) {
   const router = useRouter()
-  const [timer, setTimer] = useState({ hours: 2, minutes: 34, seconds: 15 })
-  const [status, setStatus] = useState<string | null>(null)
+  const [job, setJob] = useState<Job | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [timer, setTimer] = useState({ hours: 0, minutes: 0, seconds: 0 })
+  const [status, setStatus] = useState<string>("Work in progress")
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getJobById(params.id)
+        if (res.job) {
+          setJob(res.job)
+          // Ensure job is marked as In Progress if not already
+          if (res.job.status === 'Pending' || res.job.status === 'Accepted') {
+            await api.checkIn(params.id, "Mock Location")
+          }
+        }
+      } catch (error) {
+        toast.error("Failed to load job details")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [params.id])
 
   useEffect(() => {
     const interval = setInterval(() => {
       setTimer((prev) => {
-        const newSeconds = prev.seconds - 1
-        if (newSeconds < 0) {
-          const newMinutes = prev.minutes - 1
-          if (newMinutes < 0) {
-            return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
-          }
-          return { ...prev, minutes: newMinutes, seconds: 59 }
+        const newSeconds = prev.seconds + 1
+        if (newSeconds === 60) {
+          return { ...prev, minutes: prev.minutes + 1, seconds: 0 }
+        }
+        if (prev.minutes === 60) {
+          return { hours: prev.hours + 1, minutes: 0, seconds: 0 }
         }
         return { ...prev, seconds: newSeconds }
       })
@@ -26,12 +49,35 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
     return () => clearInterval(interval)
   }, [])
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    setStatus(newStatus)
+    try {
+      await api.updateJobStatus(params.id, "In Progress", newStatus)
+      toast.success("Status updated")
+    } catch (e) {
+      console.error("Failed to update status")
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!job) return <div className="p-6">Job not found</div>
+
   return (
     <div className="min-h-screen px-6 pt-6 pb-24">
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="relative text-center mb-8">
+        <button onClick={() => router.back()} className="absolute left-0 top-0 p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
         <p className="text-xs text-muted-foreground mb-2">Currently Working</p>
-        <h1 className="text-2xl font-bold">{params.id}</h1>
+        <h1 className="text-2xl font-bold">{job.company}</h1>
       </div>
 
       {/* Check In Status */}
@@ -50,7 +96,7 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
       {/* Location */}
       <div className="p-4 rounded-lg bg-card border border-border mb-6">
         <p className="text-xs text-muted-foreground mb-2">Location</p>
-        <p className="font-semibold mb-4">ABC Industries - Block A</p>
+        <p className="font-semibold mb-4">{job.location}</p>
         <button className="w-full py-2 px-3 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-medium">
           Share Location
         </button>
@@ -60,7 +106,7 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
       <div className="p-4 rounded-lg bg-card border border-border mb-6">
         <p className="text-xs text-muted-foreground mb-3">Site Supervisor</p>
         <div className="flex items-center justify-between">
-          <p className="font-semibold">Rajesh Kumar</p>
+          <p className="font-semibold">{job.supervisor || "N/A"}</p>
           <button className="p-2 hover:bg-muted rounded-lg transition-colors">
             <Phone className="w-5 h-5 text-primary" strokeWidth={1.5} />
           </button>
@@ -74,12 +120,11 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
           {["Work in progress", "Taking break", "Waiting for parts", "Issue/Problem"].map((s) => (
             <button
               key={s}
-              onClick={() => setStatus(s)}
-              className={`w-full py-3 px-3 rounded-lg text-left font-semibold text-sm transition-colors ${
-                status === s
-                  ? "bg-primary/20 border border-primary/50 text-primary dark:text-primary"
-                  : "bg-muted hover:bg-muted/80 text-foreground border border-border"
-              }`}
+              onClick={() => handleStatusUpdate(s)}
+              className={`w-full py-3 px-3 rounded-lg text-left font-semibold text-sm transition-colors ${status === s
+                ? "bg-primary/20 border border-primary/50 text-primary dark:text-primary"
+                : "bg-muted hover:bg-muted/80 text-foreground border border-border"
+                }`}
             >
               {s}
             </button>
@@ -95,7 +140,9 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
         >
           Complete Work
         </button>
-        <button className="flex-1 py-3 px-6 rounded-lg border border-border hover:bg-muted transition-colors font-semibold">
+        <button
+          onClick={() => router.push('/technician/dashboard')}
+          className="flex-1 py-3 px-6 rounded-lg border border-border hover:bg-muted transition-colors font-semibold">
           Check Out
         </button>
       </div>

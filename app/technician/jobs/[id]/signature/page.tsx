@@ -4,6 +4,9 @@ import type React from "react"
 
 import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
 export default function SignaturePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -12,6 +15,7 @@ export default function SignaturePage({ params }: { params: { id: string } }) {
   const [supervisorDesignation, setSupervisorDesignation] = useState("")
   const [isDrawing, setIsDrawing] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -53,8 +57,22 @@ export default function SignaturePage({ params }: { params: { id: string } }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
-  const handleSubmit = () => {
-    router.push(`/technician/jobs/${params.id}/completion`)
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      const canvas = canvasRef.current
+      const signature = canvas ? canvas.toDataURL() : ""
+
+      await api.completeJob(params.id, signature)
+      toast.success("Job completed successfully!")
+
+      // Navigate to completion success or back to dashboard
+      router.push("/technician/dashboard")
+    } catch (e) {
+      toast.error("Failed to submit job completion")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -123,10 +141,11 @@ export default function SignaturePage({ params }: { params: { id: string } }) {
       {/* Submit Button */}
       <button
         onClick={handleSubmit}
-        disabled={!supervisorName || !supervisorDesignation || !confirmed}
-        className="w-full py-4 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg"
+        disabled={!supervisorName || !supervisorDesignation || !confirmed || loading}
+        className="w-full py-4 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg flex items-center justify-center gap-2"
       >
-        Submit Signature
+        {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+        {loading ? "Submitting..." : "Submit Signature"}
       </button>
     </div>
   )

@@ -3,11 +3,15 @@
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
+import { api } from "@/lib/api"
+import { toast } from "sonner"
+
 export default function CompanyRegisterContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const phone = searchParams.get("phone")
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     companyName: "",
     industry: "",
@@ -23,9 +27,19 @@ export default function CompanyRegisterContent() {
     if (step < 2) setStep(step + 1)
   }
 
-  const handleSubmit = () => {
-    console.log("[v0] Company registration:", { phone, ...formData })
-    router.push("/company/dashboard")
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    try {
+      const res = await api.registerCompany({ phone, ...formData })
+      if (res.success) {
+        toast.success("Registration successful!")
+        router.push("/company/dashboard")
+      }
+    } catch (e) {
+      toast.error("Registration failed")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
