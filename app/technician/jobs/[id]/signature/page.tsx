@@ -2,13 +2,14 @@
 
 import type React from "react"
 
-import { useRef, useState } from "react"
+import { useRef, useState, use } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 
-export default function SignaturePage({ params }: { params: { id: string } }) {
+export default function SignaturePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [supervisorName, setSupervisorName] = useState("")
@@ -63,7 +64,7 @@ export default function SignaturePage({ params }: { params: { id: string } }) {
       const canvas = canvasRef.current
       const signature = canvas ? canvas.toDataURL() : ""
 
-      await api.completeJob(params.id, signature)
+      await api.completeJob(id, signature)
       toast.success("Job completed successfully!")
 
       // Navigate to completion success or back to dashboard

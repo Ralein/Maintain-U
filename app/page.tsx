@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Wrench } from "lucide-react"
 
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+
 export default function SplashScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -17,7 +19,10 @@ export default function SplashScreen() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900 px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900 px-6 relative">
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm glass p-10 rounded-3xl flex flex-col items-center justify-center space-y-8 animate-in zoom-in-95 duration-500">
         {/* Logo */}
         <div className="relative">

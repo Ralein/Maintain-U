@@ -2,11 +2,12 @@
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { CheckCircle2, Loader2, ArrowLeft, Users } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
-export default function AdminRequestDetailsPage({ params }: { params: { id: string } }) {
+export default function AdminRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params)
     const router = useRouter()
     const [request, setRequest] = useState<Request | null>(null)
     const [loading, setLoading] = useState(true)
@@ -14,7 +15,7 @@ export default function AdminRequestDetailsPage({ params }: { params: { id: stri
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await api.getRequestById(params.id)
+                const res = await api.getRequestById(id)
                 if (res.request) {
                     setRequest(res.request)
                 }
@@ -25,7 +26,7 @@ export default function AdminRequestDetailsPage({ params }: { params: { id: stri
             }
         }
         fetchData()
-    }, [params.id])
+    }, [id])
 
     if (loading) {
         return (
@@ -56,15 +57,15 @@ export default function AdminRequestDetailsPage({ params }: { params: { id: stri
                 </div>
                 <div className="mt-2 flex gap-2">
                     <span className={`px-3 py-1 rounded-full text-sm font-semibold ${request.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                            request.status === 'In Progress' ? 'bg-orange-100 text-orange-700' :
-                                request.status === 'New' ? 'bg-red-100 text-red-700' :
-                                    'bg-blue-100 text-blue-700'
+                        request.status === 'In Progress' ? 'bg-orange-100 text-orange-700' :
+                            request.status === 'New' ? 'bg-red-100 text-red-700' :
+                                'bg-blue-100 text-blue-700'
                         }`}>
                         {request.status}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-sm font-semibold ${request.priority === 'Emergency' ? 'bg-red-500/10 text-red-600' :
-                            request.priority === 'Urgent' ? 'bg-yellow-500/10 text-yellow-600' :
-                                'bg-slate-100 text-slate-600'
+                        request.priority === 'Urgent' ? 'bg-yellow-500/10 text-yellow-600' :
+                            'bg-slate-100 text-slate-600'
                         }`}>
                         {request.priority}
                     </span>

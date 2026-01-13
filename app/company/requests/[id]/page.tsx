@@ -2,11 +2,12 @@
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
-export default function RequestDetailsPage({ params }: { params: { id: string } }) {
+export default function RequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [request, setRequest] = useState<Request | null>(null)
   const [loading, setLoading] = useState(true)
@@ -14,7 +15,7 @@ export default function RequestDetailsPage({ params }: { params: { id: string } 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.getRequestById(params.id)
+        const res = await api.getRequestById(id)
         if (res.request) {
           setRequest(res.request)
         }
@@ -25,7 +26,7 @@ export default function RequestDetailsPage({ params }: { params: { id: string } 
       }
     }
     fetchData()
-  }, [params.id])
+  }, [id])
 
   if (loading) {
     return (

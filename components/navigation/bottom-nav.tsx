@@ -28,7 +28,7 @@ const navItems = {
     { id: "jobs", label: "Jobs", icon: BiClipboard, href: "/admin/requests" },
     { id: "team", label: "Team", icon: BiGroup, href: "/admin/technicians" },
     { id: "salary", label: "Salary", icon: BiMoney, href: "/admin/salary" },
-    { id: "more", label: "More", icon: BiCog, href: "/admin/more" },
+    { id: "settings", label: "Settings", icon: BiCog, href: "/admin/settings" },
   ],
 }
 

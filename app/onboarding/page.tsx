@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Briefcase, Wrench, ArrowRight, Building2 } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 export default function OnboardingScreen() {
   const router = useRouter()
@@ -15,7 +16,10 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900 relative">
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md space-y-8 glass p-8 rounded-3xl shadow-xl">
         {/* Header */}
         <div className="space-y-3 text-center">

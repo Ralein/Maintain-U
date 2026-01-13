@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { Phone, CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
 import { api, Job } from "@/lib/api"
 import { toast } from "sonner"
 
-export default function ActiveJobPage({ params }: { params: { id: string } }) {
+export default function ActiveJobPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
@@ -16,12 +17,12 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.getJobById(params.id)
+        const res = await api.getJobById(id)
         if (res.job) {
           setJob(res.job)
           // Ensure job is marked as In Progress if not already
           if (res.job.status === 'Pending' || res.job.status === 'Accepted') {
-            await api.checkIn(params.id, "Mock Location")
+            await api.checkIn(id, "Mock Location")
           }
         }
       } catch (error) {
@@ -31,7 +32,7 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
       }
     }
     fetchData()
-  }, [params.id])
+  }, [id])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -52,7 +53,7 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
   const handleStatusUpdate = async (newStatus: string) => {
     setStatus(newStatus)
     try {
-      await api.updateJobStatus(params.id, "In Progress", newStatus)
+      await api.updateJobStatus(id, "In Progress", newStatus)
       toast.success("Status updated")
     } catch (e) {
       console.error("Failed to update status")
@@ -135,7 +136,7 @@ export default function ActiveJobPage({ params }: { params: { id: string } }) {
       {/* Action Buttons */}
       <div className="flex gap-3 fixed bottom-6 left-6 right-6">
         <button
-          onClick={() => router.push(`/technician/jobs/${params.id}/signature`)}
+          onClick={() => router.push(`/technician/jobs/${id}/signature`)}
           className="flex-1 py-3 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors"
         >
           Complete Work

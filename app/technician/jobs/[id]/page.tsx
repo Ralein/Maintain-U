@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { api, Job } from "@/lib/api"
 import { ArrowLeft, MapPin, Calendar, Clock, Phone, Loader2, PlayCircle, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 
-export default function JobDetailsPage({ params }: { params: { id: string } }) {
+export default function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
@@ -15,7 +16,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await api.getJobById(params.id)
+        const res = await api.getJobById(id)
         if (res.job) {
           setJob(res.job)
         }
@@ -26,14 +27,14 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
       }
     }
     fetchData()
-  }, [params.id])
+  }, [id])
 
   const handleAccept = async () => {
     setActionLoading(true)
     try {
       // Simply update status locally for mock
-      // In real API, api.acceptJob(params.id) would be called
-      await api.updateJobStatus(params.id, "Accepted")
+      // In real API, api.acceptJob(id) would be called
+      await api.updateJobStatus(id, "Accepted")
       setJob(prev => prev ? ({ ...prev, status: "Accepted" }) : null)
       toast.success("Job accepted")
     } catch (e) {
@@ -44,7 +45,7 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
   }
 
   const handleStart = () => {
-    router.push(`/technician/jobs/${params.id}/active`)
+    router.push(`/technician/jobs/${id}/active`)
   }
 
   if (loading) return (
@@ -71,9 +72,9 @@ export default function JobDetailsPage({ params }: { params: { id: string } }) {
       {/* Status Badge */}
       <div className="flex justify-center mb-8">
         <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${job.status === 'Completed' ? 'bg-green-100 text-green-700' :
-            job.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-              job.status === 'Accepted' ? 'bg-purple-100 text-purple-700' :
-                'bg-yellow-100 text-yellow-700'
+          job.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+            job.status === 'Accepted' ? 'bg-purple-100 text-purple-700' :
+              'bg-yellow-100 text-yellow-700'
           }`}>
           {job.status}
         </span>

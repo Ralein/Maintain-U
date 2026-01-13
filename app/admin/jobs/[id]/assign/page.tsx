@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { CheckCircle2, User, Loader2, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 
-export default function AssignTeamPage({ params }: { params: { id: string } }) {
+export default function AssignTeamPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params)
     const router = useRouter()
     const [technicians, setTechnicians] = useState<any[]>([])
     const [selectedTechs, setSelectedTechs] = useState<string[]>([])
@@ -41,7 +42,7 @@ export default function AssignTeamPage({ params }: { params: { id: string } }) {
         try {
             // Assuming first selected is lead for now or random
             const leadId = selectedTechs[0]
-            await api.assignTeam(params.id, selectedTechs, leadId)
+            await api.assignTeam(id, selectedTechs, leadId)
             toast.success("Team assigned successfully")
             router.push("/admin/requests")
         } catch (e) {
@@ -59,7 +60,7 @@ export default function AssignTeamPage({ params }: { params: { id: string } }) {
                     <ArrowLeft className="w-5 h-5" />
                 </button>
                 <h1 className="text-2xl font-bold">Assign Team</h1>
-                <p className="text-muted-foreground text-sm">Select technicians for Request {params.id}</p>
+                <p className="text-muted-foreground text-sm">Select technicians for Request {id}</p>
             </div>
 
             {/* Tech List */}
@@ -77,8 +78,8 @@ export default function AssignTeamPage({ params }: { params: { id: string } }) {
                                 key={tech.id}
                                 onClick={() => toggleTech(tech.id)}
                                 className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedTechs.includes(tech.id)
-                                        ? "bg-blue-500/10 border-blue-500"
-                                        : "bg-card border-border hover:border-primary/50"
+                                    ? "bg-blue-500/10 border-blue-500"
+                                    : "bg-card border-border hover:border-primary/50"
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
