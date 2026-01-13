@@ -9,7 +9,6 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 export const metadata: Metadata = {
   title: "MaintainU - Industrial Maintenance Platform",
   description: "Professional B2B maintenance management platform for companies and technicians",
-  generator: "v0.app",
   icons: {
     icon: [
       {
