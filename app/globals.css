@@ -81,8 +81,8 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", sans-serif;
-  --font-mono: "Geist Mono", monospace;
+  --font-sans: var(--font-sans), sans-serif;
+  --font-mono: monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -125,6 +125,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -152,4 +153,70 @@
   small {
     @apply text-sm;
   }
+}
+
+/* Modern UI Utilities */
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-black/30 backdrop-blur-xl border border-white/20 dark:border-white/10;
+  }
+
+  .glass-card {
+    @apply bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl border border-white/40 dark:border-white/5 shadow-lg shadow-black/5 hover:shadow-xl hover:scale-[1.01] transition-all duration-300;
+  }
+
+  .neumorphic {
+    @apply bg-[#e0e5ec] dark:bg-[#1e293b] border border-white/20 dark:border-white/5;
+    box-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff;
+  }
+
+  .dark .neumorphic {
+    box-shadow: 6px 6px 12px #151d2a, -6px -6px 12px #27354c;
+  }
+
+  .neumorphic-pressed {
+    @apply bg-[#e0e5ec] dark:bg-[#1e293b];
+    box-shadow: inset 6px 6px 12px #b8b9be, inset -6px -6px 12px #ffffff;
+  }
+
+  .dark .neumorphic-pressed {
+    box-shadow: inset 6px 6px 12px #151d2a, inset -6px -6px 12px #27354c;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Smooth inputs */
+input,
+select,
+textarea {
+  @apply transition-all duration-200 focus:ring-2 focus:ring-primary/20;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }

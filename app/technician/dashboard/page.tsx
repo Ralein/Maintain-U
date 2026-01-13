@@ -5,6 +5,7 @@ import { StatCard } from "@/components/cards/stat-card"
 import { useEffect, useState } from "react"
 import { api, Job } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { Bell, Zap, MapPin, Calendar, ArrowRight } from "lucide-react"
 
 export default function TechnicianDashboard() {
   const router = useRouter()
@@ -35,48 +36,61 @@ export default function TechnicianDashboard() {
   ]
 
   return (
-    <div className="min-h-screen px-6 pt-6 pb-32">
+    <div className="min-h-screen px-6 pt-6 pb-32 bg-background">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Hello, Raj Kumar</h1>
-          <p className="text-slate-400 text-sm">Ready for today's work?</p>
+          <h1 className="text-2xl font-bold tracking-tight">Hello, Raj Kumar</h1>
+          <p className="text-muted-foreground text-sm">Ready for today's work?</p>
         </div>
-        <button className="w-10 h-10 backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
-          🔔
+        <button onClick={() => router.push("/technician/notifications")} className="p-2.5 hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50">
+          <Bell className="w-5 h-5" />
         </button>
       </div>
 
       {/* Today's Assignment */}
       {activeJob ? (
-        <div className="backdrop-blur-md bg-white/10 border border-l-4 border-white/20 border-l-blue-400 rounded-2xl p-5 shadow-2xl shadow-black/20 mb-8">
-          <div className="flex items-start justify-between mb-4">
+        <div className="glass-card p-5 rounded-3xl mb-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-primary/10" />
+
+          <div className="flex items-start justify-between mb-4 relative">
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wider mb-1">Today's Assignment</p>
-              <h3 className="text-lg font-bold text-white">{activeJob.company}</h3>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Today's Assignment</p>
+              <h3 className="text-xl font-bold">{activeJob.company}</h3>
             </div>
-            <span className="px-2 py-1 bg-blue-500/30 border border-blue-400/50 rounded text-xs text-blue-300 font-semibold">
+            <span className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-600 dark:text-blue-400 font-semibold">
               {activeJob.status}
             </span>
           </div>
 
-          <p className="text-sm text-slate-300 mb-2">⚡ {activeJob.service}</p>
-          <p className="text-sm text-slate-400 mb-4">{activeJob.time} - Location: {activeJob.location}</p>
+          <div className="flex items-center gap-2 text-sm text-foreground/80 mb-2">
+            <Zap className="w-4 h-4 text-orange-500 fill-orange-500" />
+            <span className="font-medium">{activeJob.service}</span>
+          </div>
 
-          <div className="flex gap-3">
-            <button className="flex-1 backdrop-blur-sm bg-white/5 border border-white/20 text-white font-semibold py-2 rounded-xl hover:bg-white/10 hover:border-white/30 transition-all text-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+            <MapPin className="w-4 h-4" />
+            <span className="truncate">{activeJob.time} - {activeJob.location}</span>
+          </div>
+
+          <div className="flex gap-3 relative">
+            <button
+              onClick={() => router.push(`/technician/jobs/${activeJob.id}`)}
+              className="flex-1 py-2.5 rounded-xl border border-border hover:bg-muted font-semibold text-sm transition-colors"
+            >
               View Details
             </button>
             <button
               onClick={() => router.push(`/technician/jobs/${activeJob.id}/active`)}
-              className="flex-1 backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-2 rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30 text-sm">
+              className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all shadow-lg shadow-primary/20 text-sm"
+            >
               Check In
             </button>
           </div>
         </div>
       ) : (
-        <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-8 text-center mb-8">
-          <p className="text-slate-400">No active assignment for today.</p>
+        <div className="glass-card p-8 rounded-3xl text-center mb-8 border-dashed">
+          <p className="text-muted-foreground">No active assignment for today.</p>
         </div>
       )}
 
@@ -89,16 +103,27 @@ export default function TechnicianDashboard() {
 
       {/* Upcoming Jobs */}
       <div>
-        <h2 className="text-lg font-bold text-white mb-4">Upcoming Jobs</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold">Upcoming Jobs</h2>
+          <button className="text-xs font-semibold text-primary uppercase tracking-wide">View All</button>
+        </div>
         <div className="space-y-3">
           {jobs.filter(j => j.id !== activeJob?.id).slice(0, 3).map((job) => (
-            <div key={job.id} className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl p-4">
-              <p className="font-semibold text-white">{job.company}</p>
-              <p className="text-xs text-slate-400">{job.date} • {job.service}</p>
+            <div key={job.id} className="glass-card p-4 rounded-xl flex items-center justify-between group cursor-pointer hover:border-primary/30 transition-all">
+              <div className="flex gap-3 items-center">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <Calendar className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{job.company}</p>
+                  <p className="text-xs text-muted-foreground">{job.date} • {job.service}</p>
+                </div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
           ))}
           {jobs.length <= 1 && (
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-8 text-center py-8 text-slate-400">
+            <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">No additional jobs scheduled</p>
             </div>
           )}
