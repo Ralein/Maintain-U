@@ -43,7 +43,7 @@ export default function CompanyNotifications() {
                     <p className="text-xs text-muted-foreground font-medium">Updates & Notifications</p>
                 </div>
                 <button className="p-2.5 hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 text-primary">
-                    <BiCheckDouble className="w-6 h-6" />
+                    <BiCheckDouble className="w-5 h-5" />
                 </button>
             </header>
 
@@ -58,9 +58,9 @@ export default function CompanyNotifications() {
                             note.type === 'warning' ? 'bg-orange-500/10 text-orange-500' :
                                 'bg-blue-500/10 text-blue-500'
                             }`}>
-                            {note.type === 'success' ? <BiCheckCircle className="w-6 h-6" /> :
-                                note.type === 'warning' ? <BiError className="w-6 h-6" /> :
-                                    <BiInfoCircle className="w-6 h-6" />}
+                            {note.type === 'success' ? <BiCheckCircle className="w-5 h-5" /> :
+                                note.type === 'warning' ? <BiError className="w-5 h-5" /> :
+                                    <BiInfoCircle className="w-5 h-5" />}
                         </div>
 
                         <div className="flex-1">

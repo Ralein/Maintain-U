@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { BiUser, BiCheck, BiX, BiSearch } from "react-icons/bi"
 import { toast } from "sonner"
 
@@ -52,13 +53,16 @@ export default function AdminTechniciansPage() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-20 px-6 py-5 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between">
+      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Technicians</h1>
           <p className="text-xs text-muted-foreground font-medium">Manage your workforce</p>
         </div>
-        <div className="flex gap-2">
-          <span className="text-xs font-bold px-2 py-1 bg-primary/10 text-primary rounded-lg">{technicians.active.length} Active</span>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <div className="h-10 px-3 flex items-center justify-center bg-primary/10 text-primary rounded-xl font-bold text-xs shadow-sm ring-1 ring-primary/10">
+            {technicians.active.length} Active
+          </div>
         </div>
       </header>
 
@@ -82,8 +86,8 @@ export default function AdminTechniciansPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all border relative ${activeTab === tab
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
-                  : "bg-transparent hover:bg-muted text-muted-foreground border-border"
+                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
+                : "bg-transparent hover:bg-muted text-muted-foreground border-border"
                 }`}
             >
               {tab === "all" && "All Staff"}
@@ -123,10 +127,10 @@ export default function AdminTechniciansPage() {
                   </div>
                   <span
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${tech.status === "Available"
-                        ? "bg-green-500/10 text-green-600"
-                        : tech.status === "Busy"
-                          ? "bg-orange-500/10 text-orange-600"
-                          : "bg-yellow-500/10 text-yellow-600"
+                      ? "bg-green-500/10 text-green-600"
+                      : tech.status === "Busy"
+                        ? "bg-orange-500/10 text-orange-600"
+                        : "bg-yellow-500/10 text-yellow-600"
                       }`}
                   >
                     {tech.status}

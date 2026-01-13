@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { BiSearch, BiFilter } from "react-icons/bi"
 
 export default function CompanyRequestsPage() {
@@ -53,14 +54,17 @@ export default function CompanyRequestsPage() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-5 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between">
+      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Requests</h1>
           <p className="text-xs text-muted-foreground font-medium">Manage maintenance</p>
         </div>
-        <button className="p-2.5 hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95">
-          <BiFilter className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm">
+            <BiFilter className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       <main className="px-6 py-6 space-y-6">
@@ -83,8 +87,8 @@ export default function CompanyRequestsPage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all border ${activeTab === tab
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
-                  : "bg-transparent hover:bg-muted text-muted-foreground border-border"
+                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
+                : "bg-transparent hover:bg-muted text-muted-foreground border-border"
                 }`}
             >
               {tab === "all" && "All Requests"}
@@ -109,9 +113,9 @@ export default function CompanyRequestsPage() {
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                      req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
-                        req.type === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
-                          'bg-primary/10 text-primary'
+                    req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                      req.type === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                        'bg-primary/10 text-primary'
                     }`}>
                     <span className="font-bold text-lg">{req.type.charAt(0)}</span>
                   </div>

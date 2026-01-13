@@ -1,6 +1,7 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { BiTrendingUp, BiTime, BiCheckCircle, BiBell, BiLoaderAlt, BiPlus } from "react-icons/bi"
 import { useEffect, useState } from "react"
 import { api, Request } from "@/lib/api"
@@ -49,14 +50,17 @@ export default function CompanyDashboard() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-5 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between">
+      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Home</h1>
           <p className="text-xs text-muted-foreground font-medium">Overview & Stats</p>
         </div>
-        <button onClick={() => router.push("/company/notifications")} className="p-2.5 hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95">
-          <BiBell className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button onClick={() => router.push("/company/notifications")} className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm">
+            <BiBell className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {loading ? (
@@ -107,9 +111,9 @@ export default function CompanyDashboard() {
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                          req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
-                            req.type === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
-                              'bg-primary/10 text-primary'
+                        req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                          req.type === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                            'bg-primary/10 text-primary'
                         }`}>
                         <span className="font-bold text-lg">{req.type.charAt(0)}</span>
                       </div>
