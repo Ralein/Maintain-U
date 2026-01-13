@@ -1,0 +1,327 @@
+"use client"
+
+// Mock API functions for MaintainU platform
+// Using localStorage for persistence to simulate a real backend
+
+const DELAY_MS = 800
+
+// Helper to simulate network delay
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Types
+export interface User {
+  id: string
+  role: "company" | "technician" | "admin"
+  name?: string
+  phone: string
+  [key: string]: any
+}
+
+export interface Request {
+  id: string
+  companyId: string
+  companyName: string
+  type: string
+  priority: "Normal" | "Urgent" | "Emergency"
+  description: string
+  status: "New" | "Assigned" | "In Progress" | "Completed" | "Cancelled"
+  date: string
+  createdAt: number
+  [key: string]: any
+}
+
+export interface Job {
+  id: string
+  requestId: string
+  technicianId: string
+  status: "Pending" | "Accepted" | "In Progress" | "Completed"
+  [key: string]: any
+}
+
+// DB Helper
+const DB = {
+  get: (key: string) => {
+    if (typeof window === "undefined") return []
+    const data = localStorage.getItem(key)
+    return data ? JSON.parse(data) : []
+  },
+  set: (key: string, data: any) => {
+    if (typeof window === "undefined") return
+    localStorage.setItem(key, JSON.stringify(data))
+  },
+  add: (key: string, item: any) => {
+    const list = DB.get(key)
+    list.unshift(item)
+    DB.set(key, list)
+    return item
+  },
+  update: (key: string, id: string, updates: any) => {
+    const list = DB.get(key)
+    const index = list.findIndex((i: any) => i.id === id)
+    if (index !== -1) {
+      list[index] = { ...list[index], ...updates }
+      DB.set(key, list)
+      return list[index]
+    }
+    return null
+  },
+}
+
+// Initialize seed data if empty
+if (typeof window !== "undefined") {
+  if (!localStorage.getItem("requests")) {
+    const initialRequests = [
+      {
+        id: "REQ-001",
+        companyId: "COMP-001",
+        companyName: "ABC Industries",
+        type: "Electrical",
+        priority: "Normal",
+        status: "In Progress",
+        date: "Jan 12, 2025",
+        description: "Main circuit breaker tripping repeatedly",
+        createdAt: Date.now() - 86400000,
+      },
+      {
+        id: "REQ-002",
+        companyId: "COMP-002",
+        companyName: "XYZ Corp",
+        type: "Mechanical",
+        priority: "Urgent",
+        status: "Completed",
+        date: "Jan 10, 2025",
+        description: "Conveyor belt stuck",
+        createdAt: Date.now() - 172800000,
+      },
+    ]
+    localStorage.setItem("requests", JSON.stringify(initialRequests))
+  }
+}
+
+export const api = {
+  // Auth
+  async sendOTP(phone: string) {
+    await delay(DELAY_MS)
+    // console.log("[Mock] OTP sent to:", phone)
+    return { success: true, message: "OTP sent" }
+  },
+
+  async verifyOTP(phone: string, otp: string) {
+    await delay(DELAY_MS)
+    
+    // Mock user roles based on phone numbers
+    let role: "company" | "technician" | "admin" = "company"
+    let name = "New User"
+    
+    if (phone === "9876543210") {
+        role = "company"
+        name = "ABC Industries"
+    } else if (phone === "9876543211") {
+        role = "admin"
+        name = "Admin User"
+    } else if (phone === "9876543212") {
+        role = "technician"
+        name = "Raj Kumar"
+    } else if (phone === "9876543213") {
+        role = "admin" // Super admin
+    }
+
+    // Check if user exists in our "db", else create
+    // For simplicity in this mock, we just return the determined role
+    const user = {
+        id: `USER-${phone.slice(-4)}`,
+        phone,
+        role,
+        name
+    }
+    
+    // Store current session
+    if (typeof window !== "undefined") {
+      localStorage.setItem("currentUser", JSON.stringify(user))
+    }
+    
+    return { success: true, role, user }
+  },
+  
+  async getCurrentUser() {
+      if (typeof window === "undefined") return null
+      const userStr = localStorage.getItem("currentUser")
+      return userStr ? JSON.parse(userStr) : null
+  },
+  
+  async logout() {
+      if (typeof window !== "undefined") {
+          localStorage.removeItem("currentUser")
+      }
+      return { success: true }
+  },
+
+  // Company
+  async registerCompany(data: any) {
+    await delay(DELAY_MS)
+    const user = { ...data, role: "company", id: `COMP-${Date.now()}` }
+    if (typeof window !== "undefined") {
+        localStorage.setItem("currentUser", JSON.stringify(user))
+        // Could store in a 'users' collection too
+    }
+    return { success: true, user }
+  },
+
+  async getCompanyRequests(filters?: any) {
+    await delay(DELAY_MS)
+    const allRequests = DB.get("requests")
+    // Filter logic could go here
+    return { requests: allRequests }
+  },
+
+  async createRequest(data: any) {
+    await delay(DELAY_MS)
+    const newRequest = {
+        id: `REQ-${Math.floor(Math.random() * 10000)}`,
+        status: "New",
+        date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        createdAt: Date.now(),
+        ...data
+    }
+    DB.add("requests", newRequest)
+    return { success: true, id: newRequest.id }
+  },
+
+  async getRequestById(id: string) {
+      await delay(DELAY_MS)
+      const requests = DB.get("requests")
+      const req = requests.find((r: any) => r.id === id)
+      return { request: req }
+  },
+
+  // Job / Technician
+  async registerTechnician(data: any) {
+    await delay(DELAY_MS)
+    const user = { ...data, role: "technician", status: "pending", id: `TECH-${Date.now()}` }
+    if (typeof window !== "undefined") {
+        localStorage.setItem("currentUser", JSON.stringify(user))
+        DB.add("technicians", user)
+    }
+    return { success: true, user }
+  },
+
+  async getJobs(filters?: any) {
+    await delay(DELAY_MS)
+    // For now returning mock jobs
+    return {
+      jobs: [
+        {
+          id: "JOB-001",
+          company: "ABC Industries",
+          service: "Electrical",
+          status: "Pending",
+          location: "Industrial Area, Phase 1",
+          time: "09:00 AM",
+          date: "Today"
+        },
+        {
+          id: "JOB-002",
+          company: "XYZ Corp",
+          service: "HVAC",
+          status: "Completed",
+          location: "Tech Park, B-Block",
+          time: "02:00 PM",
+           date: "Yesterday"
+        }
+      ],
+    }
+  },
+
+  async getJobById(id: string) {
+      await delay(DELAY_MS)
+      // Mock details
+      return {
+          job: {
+              id,
+              company: "ABC Industries",
+              address: "Plot 45, Industrial Area, Phase 1",
+              service: "Electrical",
+              description: "Main circuit breaker tripping repeatedly. Urgent fix needed.",
+              supervisor: "Mr. Sharma",
+              supervisorPhone: "9876543200",
+              team: [
+                  { name: "Raj Kumar", role: "Lead", photo: "" },
+                  { name: "Amit Singh", role: "Member", photo: "" }
+              ],
+              status: "Active"
+          }
+      }
+  },
+
+  async acceptJob(jobId: string) {
+    await delay(DELAY_MS)
+    return { success: true }
+  },
+
+  async checkIn(jobId: string, location: any) {
+    await delay(DELAY_MS)
+    return { success: true }
+  },
+  
+  async updateJobStatus(jobId: string, status: string, notes?: string) {
+      await delay(DELAY_MS)
+      return { success: true }
+  },
+  
+  async completeJob(jobId: string, signature: string) {
+      await delay(DELAY_MS)
+      return { success: true }
+  },
+
+  // Admin
+  async getRequests(filters?: any) {
+      await delay(DELAY_MS)
+      const requests = DB.get("requests")
+      return { requests }
+  },
+
+  async assignTeam(jobId: string, techIds: string[], leadId: string) {
+    await delay(DELAY_MS)
+    const requests = DB.get("requests")
+    // Find request and simple update status
+    // In real app, we would create a Job entry
+    const reqIndex = requests.findIndex((r: any) => r.id === jobId)
+    if (reqIndex >= 0) {
+        DB.update("requests", jobId, { status: "Assigned" })
+    }
+    return { success: true }
+  },
+  
+  async getTechnicians(filters?: string) {
+      await delay(DELAY_MS)
+      // Return some mock technicians if empty
+      let techs = DB.get("technicians")
+      if (techs.length === 0) {
+          techs = [
+              { id: "T1", name: "Raj Kumar", skill: "Electrical", status: "Active", rating: 4.8 },
+              { id: "T2", name: "Amit Singh", skill: "Mechanical", status: "Active", rating: 4.5 },
+              { id: "T3", name: "Sunil Verma", skill: "Plumbing", status: "Pending", rating: 0 },
+          ]
+      }
+      return { technicians: techs }
+  },
+
+  async approveTechnician(techId: string) {
+    await delay(DELAY_MS)
+    DB.update("technicians", techId, { status: "Active" })
+    return { success: true }
+  },
+  
+  async rejectTechnician(techId: string, reason: string) {
+      await delay(DELAY_MS)
+      DB.update("technicians", techId, { status: "Rejected", reason })
+      return { success: true }
+  },
+
+  async getSalaryData(period: string) {
+    await delay(DELAY_MS)
+    return {
+      technicians: [{ name: "Raj Kumar", days: 24, rate: 800, net: 19200 }],
+    }
+  },
+}
