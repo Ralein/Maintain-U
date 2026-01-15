@@ -13,7 +13,7 @@ export interface User {
   id: string
   role: "company" | "technician" | "admin"
   status: "pending" | "active" | "banned" | "rejected"
-  name?: string
+  name?: string | null
   phone: string
   resetStatus?: "none" | "requested" | "approved"
   [key: string]: any

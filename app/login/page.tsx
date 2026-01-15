@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2, Building2, Wrench } from "lucide-react"
+import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2, Building2, Wrench, LayoutDashboard } from "lucide-react"
 import { api } from "@/lib/api"
 import { requestPasswordResetAction, checkResetStatusAction, completePasswordResetAction } from "@/lib/actions"
 import { toast } from "sonner"
@@ -12,7 +12,7 @@ type Step = "login" | "verify-required" | "waiting" | "approved"
 export default function LoginPage() {
   const router = useRouter()
   const [phone, setPhone] = useState("")
-  const [role, setRole] = useState<"company" | "technician">("company")
+  const [role, setRole] = useState<"company" | "technician" | "admin">("company")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState<Step>("login")
@@ -113,6 +113,21 @@ export default function LoginPage() {
       const res = await api.loginWithPassword(phone, password)
 
       if (res.success) {
+        // Validate Role Match
+        // Allow admins to login from any portal (hidden feature)
+        if (res.role !== 'admin' && res.role !== role) {
+          toast.error(`Access Denied: This account is a ${res.role}, not a ${role}.`)
+          setIsLoading(false)
+          return
+        }
+
+        // If I am selecting Admin (which is hidden now, but in case state is somehow set), but I am actually a Company user...
+        if (role === 'admin' && res.role !== 'admin') {
+          toast.error("Access Denied: You do not have administrator privileges.")
+          setIsLoading(false)
+          return
+        }
+
         toast.success("Welcome back!")
         if (res.role === "company") {
           router.push("/company/dashboard")
@@ -188,7 +203,9 @@ export default function LoginPage() {
   const handleSubmitForVerification = async () => {
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone, role)
+      // Cast role to "company" | "technician" (exclude admin for verify step)
+      const sigupRole = role === 'admin' ? 'company' : role
+      const res = await api.sendOTP(phone, sigupRole)
 
       if (res.error === 'pending') {
         toast.info(res.message || "Account submitted for verification")
@@ -350,7 +367,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Role Selection */}
+            {/* Role Selection (Signup) */}
             <div className="space-y-2 text-left">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">I am registering as a...</label>
               <div className="grid grid-cols-2 gap-3">
@@ -399,6 +416,23 @@ export default function LoginPage() {
         ) : (
           /* Login Form */
           <div className="space-y-6">
+
+            {/* Login Role Tabs */}
+            <div className="flex bg-muted/30 p-1 rounded-xl">
+              {(['company', 'technician'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg capitalize transition-all ${role === r
+                      ? "bg-white dark:bg-card shadow-sm text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+
             {/* Phone Number */}
             <div className="space-y-2">
               <label className="text-sm font-medium ml-1">Phone Number</label>

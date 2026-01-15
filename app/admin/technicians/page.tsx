@@ -96,17 +96,22 @@ export default function AdminTechniciansPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all border relative ${activeTab === tab
+              className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all border flex items-center gap-2 ${activeTab === tab
                 ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
                 : "bg-transparent hover:bg-muted text-muted-foreground border-border"
                 }`}
             >
-              {tab === "all" && "All Staff"}
-              {tab === "pending" && "Pending Approval"}
-              {tab === "active" && "On Duty"}
+              <span>
+                {tab === "all" && "All Staff"}
+                {tab === "pending" && "Pending Approval"}
+                {tab === "active" && "On Duty"}
+              </span>
 
               {tab === "pending" && technicians.pending.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold ring-2 ring-background">
+                <span className={`px-2 py-0.5 rounded-md text-xs font-bold transition-all ${activeTab === tab
+                  ? "bg-white/20 text-white"
+                  : "bg-red-500/10 text-red-600 dark:text-red-400"
+                  }`}>
                   {technicians.pending.length}
                 </span>
               )}

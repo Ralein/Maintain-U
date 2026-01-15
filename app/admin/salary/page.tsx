@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { Download } from "lucide-react"
 
 export default function AdminSalaryPage() {
   const [period, setPeriod] = useState("January 2025")
@@ -41,8 +43,12 @@ export default function AdminSalaryPage() {
       {/* Header */}
       <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Salary Management</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Salary</h1>
           <p className="text-xs text-muted-foreground font-medium">{period}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          
         </div>
       </header>
 

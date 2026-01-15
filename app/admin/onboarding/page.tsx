@@ -1,37 +1,50 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { api, User } from "@/lib/api"
-import { ChevronLeft, Search, Check, X, Shield, Ban, Loader2, RefreshCw } from "lucide-react"
-import { toast } from "sonner"
 import { BottomNav } from "@/components/navigation/bottom-nav"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { Search, User, Check, X, ShieldAlert, RotateCcw, Building2, Wrench } from "lucide-react"
+import { api, User as UserType } from "@/lib/api"
+import { toast } from "sonner"
 
-export default function UserOnboardingPage() {
-    const router = useRouter()
-    const [users, setUsers] = useState<User[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [filter, setFilter] = useState<"all" | "pending" | "active" | "banned" | "resets">("pending")
+export default function UserManagementPage() {
+    const [activeTab, setActiveTab] = useState<"all" | "pending" | "active" | "banned" | "rejected" | "reset">("pending")
+    const [loading, setLoading] = useState(true)
+    const [users, setUsers] = useState<{
+        all: UserType[],
+        pending: UserType[],
+        active: UserType[],
+        banned: UserType[],
+        rejected: UserType[],
+        reset: UserType[]
+    }>({
+        all: [],
+        pending: [],
+        active: [],
+        banned: [],
+        rejected: [],
+        reset: []
+    })
     const [search, setSearch] = useState("")
-    const [isRefreshing, setIsRefreshing] = useState(false)
 
     const fetchUsers = async () => {
-        setIsLoading(true)
         try {
-            // API currently doesn't support complex filtering, so we fetch all and filter client-side
+            setLoading(true)
             const res = await api.getUsers()
-            if (res && res.users) {
-                const typedUsers = res.users.map((u: any) => ({
-                    ...u,
-                    name: u.name || undefined
-                }))
-                setUsers(typedUsers)
+            if (res.users) {
+                const all = res.users
+                const pending = all.filter((u: any) => u.status === 'pending' || u.status === 'Pending')
+                const active = all.filter((u: any) => (u.status === 'active' || u.status === 'Active') && u.resetStatus !== 'requested')
+                const banned = all.filter((u: any) => u.status === 'banned' || u.status === 'Banned')
+                const rejected = all.filter((u: any) => u.status === 'rejected' || u.status === 'Rejected')
+                const reset = all.filter((u: any) => u.resetStatus === 'requested')
+
+                setUsers({ all, pending, active, banned, rejected, reset })
             }
-        } catch (error) {
+        } catch (e) {
             toast.error("Failed to load users")
         } finally {
-            setIsLoading(false)
-            setIsRefreshing(false)
+            setLoading(false)
         }
     }
 
@@ -39,212 +52,217 @@ export default function UserOnboardingPage() {
         fetchUsers()
     }, [])
 
-    const handleStatusUpdate = async (userId: string, newStatus: "active" | "banned" | "pending" | "rejected", newRole?: string) => {
+    const handleStatusUpdate = async (userId: string, status: "active" | "banned" | "rejected" | "pending") => {
         try {
-            // Optimistic update
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: newStatus, ...(newRole ? { role: newRole as any } : {}) } : u))
-
-            const res = await api.updateUserStatus(userId, newStatus, newRole)
-            if (res.success) {
-                toast.success(`User updated to ${newStatus}`)
-            } else {
-                // Revert on failure (reload)
-                fetchUsers()
-                toast.error("Failed to update user")
-            }
-        } catch (error) {
+            await api.updateUserStatus(userId, status)
+            toast.success(`User status updated to ${status}`)
             fetchUsers()
-            toast.error("Error updating user")
+        } catch {
+            toast.error("Failed to update status")
+        }
+    }
+
+    const handleRoleToggle = async (user: UserType) => {
+        const newRole = user.role === 'company' ? 'technician' : 'company'
+        try {
+            await api.updateUserStatus(user.id, user.status, newRole)
+            toast.success(`Role switched to ${newRole}`)
+            fetchUsers()
+        } catch {
+            toast.error("Failed to switch role")
         }
     }
 
     const handleApproveReset = async (userId: string) => {
         try {
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, resetStatus: "approved" } : u))
-
-            const res = await api.approvePasswordReset(userId)
-            if (res.success) {
-                toast.success("Password reset approved")
-            } else {
-                fetchUsers()
-                toast.error("Failed to approve reset")
-            }
-        } catch (error) {
+            await api.approvePasswordReset(userId)
+            toast.success("Password reset approved")
             fetchUsers()
-            toast.error("Error approving reset")
+        } catch {
+            toast.error("Failed to approve reset")
         }
     }
 
-    const filteredUsers = users.filter(user => {
-        const matchesFilter = filter === "all" ? true :
-            filter === "resets" ? user.resetStatus === "requested" :
-                user.status.toLowerCase() === filter.toLowerCase()
-        const matchesSearch = user.name?.toLowerCase().includes(search.toLowerCase()) ||
-            user.phone.includes(search) ||
-            user.role.toLowerCase().includes(search.toLowerCase())
-        return matchesFilter && matchesSearch
-    })
+    const filteredList = users[activeTab].filter(u =>
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.phone.includes(search) ||
+        u.role.toLowerCase().includes(search.toLowerCase())
+    )
 
-    // Sort: Pending first
-    filteredUsers.sort((a, b) => {
-        if (filter === "resets") return 0 // Keep default order for resets
-        if (a.status === "pending" && b.status !== "pending") return -1
-        if (a.status !== "pending" && b.status === "pending") return 1
-        return 0
-    })
+    const tabs: Array<"all" | "pending" | "active" | "banned" | "rejected" | "reset"> = ["all", "pending", "active", "banned", "rejected", "reset"]
 
     return (
-        <div className="min-h-screen pb-32 app-gradient">
+        <div className="min-h-screen pb-32">
             {/* Header */}
-            <header className="sticky top-0 z-20 px-6 py-4 glass border-b border-white/20 flex items-center gap-4 transition-all">
-                <button
-                    onClick={() => router.back()}
-                    className="p-2 -ml-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors"
-                >
-                    <ChevronLeft className="w-5 h-5 text-foreground" />
-                </button>
-                <div className="flex-1">
-                    <h1 className="text-xl font-bold tracking-tight text-foreground">User Management</h1>
+            <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
                     <p className="text-xs text-muted-foreground font-medium">Verify & Manage Users</p>
                 </div>
-                <button
-                    onClick={() => { setIsRefreshing(true); fetchUsers(); }}
-                    className={`p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
-                >
-                    <RefreshCw className="w-5 h-5 text-muted-foreground" />
-                </button>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <div className="h-10 px-3 flex items-center justify-center bg-primary/10 text-primary rounded-xl font-bold text-xs shadow-sm ring-1 ring-primary/10">
+                        {users.active.length} Active
+                    </div>
+                </div>
             </header>
 
             <main className="px-6 py-6 space-y-6">
-                {/* Search & Filters */}
-                <div className="space-y-4">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search users by name, phone, or role..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-white/20 bg-white/40 dark:bg-black/20 focus:bg-white/60 dark:focus:bg-black/40 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all backdrop-blur-md"
-                        />
+                {/* Search */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="text-muted-foreground w-5 h-5" />
                     </div>
-
-                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar mask-gradient-right">
-                        {(["all", "pending", "active", "banned", "resets"] as const).map((f) => (
-                            <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${filter === f
-                                    ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                                    : "bg-white/40 dark:bg-black/20 text-muted-foreground border-white/20 hover:bg-white/60 dark:hover:bg-white/10"
-                                    }`}
-                            >
-                                {f === "resets" ? "Reset Requests" : f.charAt(0).toUpperCase() + f.slice(1)}
-                            </button>
-                        ))}
-                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search users by name, phone, or role..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all shadow-sm"
+                    />
                 </div>
 
-                {/* User List */}
-                <div className="space-y-4">
-                    {isLoading && !isRefreshing ? (
-                        <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                            <p className="text-sm text-muted-foreground">Loading users...</p>
-                        </div>
-                    ) : filteredUsers.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground space-y-2 glass-card rounded-2xl border-dashed border-2 border-white/20">
-                            <Search className="w-8 h-8 opacity-20" />
-                            <p className="font-medium">No users found</p>
-                            <p className="text-xs opacity-60">Try adjusting your filters</p>
+                {/* Tabs */}
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`px-5 py-2.5 rounded-full font-semibold text-sm whitespace-nowrap transition-all border flex items-center gap-2 ${activeTab === tab
+                                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
+                                : "bg-transparent hover:bg-muted text-muted-foreground border-border"
+                                }`}
+                        >
+                            <span className="capitalize">
+                                {tab === "reset" ? "Reset Requests" : tab}
+                            </span>
+
+                            {(tab === "pending" || tab === "reset") && users[tab].length > 0 && (
+                                <span className={`px-2 py-0.5 rounded-md text-xs font-bold transition-all ${activeTab === tab
+                                    ? "bg-white/20 text-white"
+                                    : "bg-red-500/10 text-red-600 dark:text-red-400"
+                                    }`}>
+                                    {users[tab].length}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* List */}
+                <div className="space-y-3">
+                    {filteredList.length === 0 ? (
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-border/60 rounded-2xl bg-muted/5">
+                            No users found
                         </div>
                     ) : (
-                        filteredUsers.map((user) => (
-                            <div key={user.id} className="glass-card p-5 rounded-2xl space-y-4 border-white/20 transition-all duration-300 hover:scale-[1.01] hover:shadow-xl">
-                                <div className="flex justify-between items-start">
-                                    <div className="space-y-1">
-                                        <h3 className="font-bold text-lg text-foreground">{user.name || "Unknown User"}</h3>
-                                        <p className="text-sm font-mono text-muted-foreground tracking-wide">{user.phone}</p>
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                            <span className="px-2 py-1 rounded-md text-[10px] uppercase font-bold bg-black/5 dark:bg-white/5 text-muted-foreground border border-black/5 dark:border-white/10">
-                                                {user.role}
-                                            </span>
-                                            <span className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold border ${user.status === "active" ? "bg-green-500/10 text-green-600 border-green-500/20" :
-                                                user.status === "pending" ? "bg-orange-500/10 text-orange-600 border-orange-500/20" :
-                                                    user.status === "banned" ? "bg-red-500/10 text-red-600 border-red-500/20" :
-                                                        "bg-gray-500/10 text-gray-600 border-gray-500/20"
-                                                }`}>
-                                                {user.status}
-                                            </span>
-                                            {user.resetStatus === 'requested' && (
-                                                <span className="px-2 py-1 rounded-md text-[10px] uppercase font-bold bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 animate-pulse">
-                                                    Reset Requested
-                                                </span>
-                                            )}
+                        filteredList.map((user) => (
+                            <div
+                                key={user.id}
+                                className="glass-card p-4 rounded-2xl flex flex-col gap-4 group hover:border-primary/30 transition-all duration-300"
+                            >
+                                <div className="flex items-start justify-between">
+                                    {/* User Info */}
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ring-1 ring-border/50 ${user.role === 'company'
+                                                ? 'bg-blue-50 dark:bg-blue-900/20'
+                                                : user.role === 'technician'
+                                                    ? 'bg-purple-50 dark:bg-purple-900/20'
+                                                    : 'bg-slate-50 dark:bg-slate-900/20'
+                                            }`}>
+                                            {user.role === 'company' && <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
+                                            {user.role === 'technician' && <Wrench className="w-6 h-6 text-purple-600 dark:text-purple-400" />}
+                                            {user.role === 'admin' && <ShieldAlert className="w-6 h-6 text-slate-600 dark:text-slate-400" />}
+                                            {!['company', 'technician', 'admin'].includes(user.role) && <User className="w-6 h-6 text-muted-foreground" />}
                                         </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {/* Status Icon */}
-                                        {user.status === 'active' && <Check className="w-5 h-5 text-green-500" />}
-                                        {user.status === 'banned' && <Ban className="w-5 h-5 text-red-500" />}
-                                        {user.status === 'pending' && <RefreshCw className="w-5 h-5 text-orange-500" />}
+                                        <div>
+                                            <p className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">
+                                                {user.name || "New User"}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                                {user.phone}
+                                            </p>
+                                            <div className="flex gap-2 mt-2">
+
+                                                {/* Clickable Badge for Pending Users */}
+                                                <button
+                                                    disabled={user.status !== 'pending'}
+                                                    onClick={() => handleRoleToggle(user)}
+                                                    className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded flex items-center gap-1 transition-all ${user.status === 'pending' ? 'cursor-pointer hover:ring-1 hover:ring-current active:scale-95' : 'cursor-default'
+                                                        } ${user.role === 'company' ? 'bg-blue-500/10 text-blue-600' :
+                                                            user.role === 'technician' ? 'bg-purple-500/10 text-purple-600' :
+                                                                'bg-slate-500/10 text-slate-600'
+                                                        }`}>
+                                                    {user.role}
+                                                    {user.status === 'pending' && <RotateCcw className="w-3 h-3 ml-1 opacity-50" />}
+                                                </button>
+
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${user.status === 'active' ? 'bg-green-500/10 text-green-600' :
+                                                        user.status === 'pending' ? 'bg-orange-500/10 text-orange-600' :
+                                                            user.status === 'banned' ? 'bg-red-500/10 text-red-600' :
+                                                                'bg-slate-500/10 text-muted-foreground'
+                                                    }`}>
+                                                    {user.status}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Actions Grid */}
-                                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-border/50">
-                                    {(user.status === "pending" || (user.status as string) === "Pending") ? (
+                                {/* Actions */}
+                                <div className="flex gap-2 pt-3 border-t border-border/40">
+                                    {user.status === 'pending' && (
                                         <>
                                             <button
                                                 onClick={() => handleStatusUpdate(user.id, "active")}
-                                                className="py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-green-500/20"
+                                                className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95"
                                             >
-                                                <Check className="w-3.5 h-3.5" />
-                                                Approve
+                                                <Check className="w-4 h-4" strokeWidth={2.5} /> Approve
                                             </button>
                                             <button
                                                 onClick={() => handleStatusUpdate(user.id, "rejected")}
-                                                className="py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 text-xs font-bold flex items-center justify-center gap-2 transition-all border border-red-500/20"
+                                                className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/30 active:scale-95"
                                             >
-                                                <X className="w-3.5 h-3.5" />
-                                                Reject
+                                                <X className="w-4 h-4" strokeWidth={2.5} /> Reject
                                             </button>
                                         </>
-                                    ) : user.status === "active" ? (
-                                        <>
-                                            <button
-                                                onClick={() => handleStatusUpdate(user.id, "banned")}
-                                                className="col-span-1 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 text-xs font-bold flex items-center justify-center gap-2 transition-all border border-red-500/20"
-                                            >
-                                                <Ban className="w-3.5 h-3.5" />
-                                                Ban
-                                            </button>
-                                            <div className="col-span-1"></div> {/* Spacer to keep Grid layout consistent if you want */}
-                                        </>
-                                    ) : user.status === "banned" ? (
-                                        <>
-                                            <button
-                                                onClick={() => handleStatusUpdate(user.id, "active")}
-                                                className="col-span-2 py-2.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-600 text-xs font-bold flex items-center justify-center gap-2 transition-all border border-green-500/20"
-                                            >
-                                                <Shield className="w-3.5 h-3.5" />
-                                                Unban User
-                                            </button>
-                                        </>
-                                    ) : null}
+                                    )}
 
-                                    {/* Password Reset Action - Spans full width if needed or sits in grid */}
-                                    <button
-                                        onClick={() => handleApproveReset(user.id)}
-                                        className={`col-span-2 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${user.resetStatus === 'approved'
-                                            ? "bg-green-500/5 text-green-600 border border-green-500/10 cursor-default opacity-60"
-                                            : "bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg shadow-yellow-500/20"
-                                            }`}
-                                        disabled={user.resetStatus === 'approved'}
-                                    >
-                                        <Shield className="w-3.5 h-3.5" />
-                                        {user.resetStatus === 'approved' ? "Reset Enabled" : "Enable Password Reset"}
-                                    </button>
+                                    {user.status === 'rejected' && (
+                                        <button
+                                            onClick={() => handleStatusUpdate(user.id, "active")}
+                                            className="flex-1 py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+                                        >
+                                            <RotateCcw className="w-4 h-4" /> Re-admit / Approve
+                                        </button>
+                                    )}
+
+                                    {user.resetStatus === 'requested' && (
+                                        <button
+                                            onClick={() => handleApproveReset(user.id)}
+                                            className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-semibold text-sm hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20"
+                                        >
+                                            <ShieldAlert className="w-4 h-4" /> Enable Password Reset
+                                        </button>
+                                    )}
+
+                                    {user.status === 'active' && user.resetStatus !== 'requested' && (
+                                        <button
+                                            onClick={() => handleStatusUpdate(user.id, "banned")}
+                                            className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/30 active:scale-95"
+                                        >
+                                            Ban User
+                                        </button>
+                                    )}
+
+                                    {user.status === 'banned' && (
+                                        <button
+                                            onClick={() => handleStatusUpdate(user.id, "active")}
+                                            className="flex-1 py-2.5 rounded-xl bg-white dark:bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-all flex items-center justify-center gap-2"
+                                        >
+                                            Unban
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))
@@ -252,7 +270,7 @@ export default function UserOnboardingPage() {
                 </div>
             </main>
 
-            <BottomNav active="home" role="admin" />
+            <BottomNav active="onboarding" role="admin" />
         </div>
     )
 }
