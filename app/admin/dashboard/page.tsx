@@ -52,9 +52,9 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen pb-32">
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
+      <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-xs text-muted-foreground font-medium">Overview & Stats</p>
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
               <button
                 key={idx}
                 onClick={() => action.path && router.push(action.path)}
-                className="group p-4 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 active:scale-95"
+                className="group p-4 rounded-xl glass-card border border-white/20 hover:border-primary/30 hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 active:scale-95"
               >
                 <div className={`p-3 rounded-full bg-muted group-hover:bg-white dark:group-hover:bg-card shadow-inner group-hover:shadow-sm transition-all ${action.color}`}>
                   <action.icon className="w-6 h-6" strokeWidth={1.5} />
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
               </div>
             ) : (
               stats.activeList.map((job) => (
-                <div key={job.id} className="glass-card p-4 rounded-xl flex items-center justify-between">
+                <div key={job.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-white/10">
                   <div>
                     <p className="font-semibold text-foreground">{job.company}</p>
                     <p className="text-xs text-muted-foreground">{job.service}</p>

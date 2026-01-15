@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2 } from "lucide-react"
+import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2, Building2, Wrench } from "lucide-react"
 import { api } from "@/lib/api"
 import { requestPasswordResetAction, checkResetStatusAction, completePasswordResetAction } from "@/lib/actions"
 import { toast } from "sonner"
@@ -12,6 +12,7 @@ type Step = "login" | "verify-required" | "waiting" | "approved"
 export default function LoginPage() {
   const router = useRouter()
   const [phone, setPhone] = useState("")
+  const [role, setRole] = useState<"company" | "technician">("company")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState<Step>("login")
@@ -187,7 +188,7 @@ export default function LoginPage() {
   const handleSubmitForVerification = async () => {
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone)
+      const res = await api.sendOTP(phone, role)
 
       if (res.error === 'pending') {
         toast.info(res.message || "Account submitted for verification")
@@ -347,6 +348,33 @@ export default function LoginPage() {
               <p className="text-muted-foreground text-xs">
                 By clicking "Submit for Verification", your phone number will be sent to our administrators for approval. You'll be notified once your account is verified.
               </p>
+            </div>
+
+            {/* Role Selection */}
+            <div className="space-y-2 text-left">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1">I am registering as a...</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setRole("company")}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${role === "company"
+                    ? "bg-primary/5 border-primary text-primary shadow-sm"
+                    : "bg-white/50 dark:bg-card/50 border-border text-muted-foreground hover:bg-muted/50 hover:border-border/80"
+                    }`}
+                >
+                  <Building2 className="w-6 h-6" />
+                  <span className="text-xs font-bold">Company</span>
+                </button>
+                <button
+                  onClick={() => setRole("technician")}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${role === "technician"
+                    ? "bg-primary/5 border-primary text-primary shadow-sm"
+                    : "bg-white/50 dark:bg-card/50 border-border text-muted-foreground hover:bg-muted/50 hover:border-border/80"
+                    }`}
+                >
+                  <Wrench className="w-6 h-6" />
+                  <span className="text-xs font-bold">Technician</span>
+                </button>
+              </div>
             </div>
 
             <button

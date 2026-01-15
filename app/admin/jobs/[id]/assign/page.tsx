@@ -53,64 +53,67 @@ export default function AssignTeamPage({ params }: { params: Promise<{ id: strin
     }
 
     return (
-        <div className="min-h-screen px-6 pt-6 pb-20">
+        <div className="min-h-screen pb-20">
             {/* Header */}
-            <div className="mb-6">
-                <button onClick={() => router.back()} className="mb-4 p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
+            <div className="sticky top-0 z-20 px-6 py-4 glass border-b-0 mb-6 transition-all">
+                <button onClick={() => router.back()} className="mb-4 p-2 -ml-2 hover:bg-muted/50 rounded-full transition-colors">
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h1 className="text-2xl font-bold">Assign Team</h1>
-                <p className="text-muted-foreground text-sm">Select technicians for Request {id}</p>
+                <h1 className="text-2xl font-bold tracking-tight">Assign Team</h1>
+                <p className="text-muted-foreground text-sm font-medium">Select technicians for Request {id}</p>
             </div>
 
-            {/* Tech List */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-            ) : (
-                <div className="space-y-3 mb-8">
-                    {technicians.length === 0 ? (
-                        <p className="text-muted-foreground text-center">No technicians available</p>
-                    ) : (
-                        technicians.map((tech) => (
-                            <div
-                                key={tech.id}
-                                onClick={() => toggleTech(tech.id)}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedTechs.includes(tech.id)
-                                    ? "bg-blue-500/10 border-blue-500"
-                                    : "bg-card border-border hover:border-primary/50"
-                                    }`}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                                            <User className="w-5 h-5 text-muted-foreground" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold">{tech.name}</p>
-                                            <p className="text-xs text-muted-foreground">{tech.skill} • {tech.status}</p>
-                                        </div>
-                                    </div>
-                                    {selectedTechs.includes(tech.id) && (
-                                        <CheckCircle2 className="w-6 h-6 text-blue-500 fill-current" />
-                                    )}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
-            )}
+            <main className="px-6">
 
-            {/* Action Button */}
-            <button
-                onClick={handleAssign}
-                disabled={selectedTechs.length === 0 || assigning}
-                className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-                {assigning && <Loader2 className="w-5 h-5 animate-spin" />}
-                {assigning ? "Assigning..." : `Assign ${selectedTechs.length} Technician${selectedTechs.length !== 1 ? 's' : ''}`}
-            </button>
+                {/* Tech List */}
+                {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <div className="space-y-3 mb-8">
+                        {technicians.length === 0 ? (
+                            <p className="text-muted-foreground text-center">No technicians available</p>
+                        ) : (
+                            technicians.map((tech) => (
+                                <div
+                                    key={tech.id}
+                                    onClick={() => toggleTech(tech.id)}
+                                    className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedTechs.includes(tech.id)
+                                        ? "bg-blue-500/10 border-blue-500"
+                                        : "bg-card border-border hover:border-primary/50"
+                                        }`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                                                <User className="w-5 h-5 text-muted-foreground" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold">{tech.name}</p>
+                                                <p className="text-xs text-muted-foreground">{tech.skill} • {tech.status}</p>
+                                            </div>
+                                        </div>
+                                        {selectedTechs.includes(tech.id) && (
+                                            <CheckCircle2 className="w-6 h-6 text-blue-500 fill-current" />
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
+
+                {/* Action Button */}
+                <button
+                    onClick={handleAssign}
+                    disabled={selectedTechs.length === 0 || assigning}
+                    className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg shadow-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    {assigning && <Loader2 className="w-5 h-5 animate-spin" />}
+                    {assigning ? "Assigning..." : `Assign ${selectedTechs.length} Technician${selectedTechs.length !== 1 ? 's' : ''}`}
+                </button>
+            </main>
         </div>
     )
 }

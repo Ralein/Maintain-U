@@ -102,9 +102,9 @@ if (typeof window !== "undefined") {
 
 export const api = {
   // Auth
-  async sendOTP(phone: string) {
+  async sendOTP(phone: string, role?: "company" | "technician") {
     const { sendOTPAction } = await import("@/lib/actions")
-    return sendOTPAction(phone)
+    return sendOTPAction(phone, role)
   },
 
   async verifyOTP(phone: string, otp: string) {

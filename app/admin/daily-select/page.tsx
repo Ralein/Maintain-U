@@ -50,9 +50,9 @@ export default function DailySelectPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="min-h-screen pb-32">
             {/* Sticky Header */}
-            <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
+            <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Daily Select</h1>
                     <p className="text-xs text-muted-foreground font-medium">Select staff for today's roster</p>
@@ -101,13 +101,13 @@ export default function DailySelectPage() {
                                 key={tech.id}
                                 onClick={() => handleToggle(tech.id)}
                                 className={`glass-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all border ${isSelected
-                                        ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)]"
-                                        : "hover:border-primary/30"
+                                    ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)]"
+                                    : "hover:border-primary/30"
                                     }`}
                             >
                                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                                        ? "border-primary bg-primary text-primary-foreground"
-                                        : "border-muted-foreground/30"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/30"
                                     }`}>
                                     {isSelected && <BiCheck className="w-4 h-4" />}
                                 </div>

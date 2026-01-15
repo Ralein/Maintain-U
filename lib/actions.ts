@@ -9,7 +9,7 @@ import { cookies } from "next/headers"
 // Helper to simulate delay if requested, or just remove locally
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export async function sendOTPAction(phone: string) {
+export async function sendOTPAction(phone: string, inputRole?: "company" | "technician") {
     // Check if user exists first
     const existingUsers = await db.select().from(users).where(eq(users.phone, phone)).limit(1)
 
@@ -29,16 +29,16 @@ export async function sendOTPAction(phone: string) {
             return { success: false, error: "banned", message: "Account suspended" }
         }
 
-        // Allow Rejected users to "Request Again" -> Reset to Pending
+        // Allow Rejected users to "Request Again" -> Reset to Pending (and update role if provided)
         if (user.status === 'rejected') {
-            await db.update(users).set({ status: 'pending' }).where(eq(users.id, user.id));
-            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: 'pending' }), { httpOnly: true, path: '/' });
+            await db.update(users).set({ status: 'pending', ...(inputRole ? { role: inputRole } : {}) }).where(eq(users.id, user.id));
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: inputRole || user.role, status: 'pending' }), { httpOnly: true, path: '/' });
             return { success: false, error: "pending", message: "Account re-submitted for verification" }
         }
     } else {
         // New User - Create as Pending IMMEDIATELY (No OTP)
         // Check for specific mockup numbers if needed, but otherwise default to Pending
-        let role: "company" | "technician" = "company"
+        let role: "company" | "technician" = inputRole || "company"
         let status: "pending" | "active" = "pending"
 
         // Mock Support

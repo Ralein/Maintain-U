@@ -47,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.variable} font-sans antialiased min-h-[100dvh]`}>
+      <body className={`${outfit.variable} font-sans antialiased min-h-[100dvh] app-gradient`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

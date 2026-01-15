@@ -47,9 +47,9 @@ export default function AdminRequestsPage() {
   const tabs: Array<"new" | "assigned" | "in-progress" | "completed"> = ["new", "assigned", "in-progress", "completed"]
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen pb-32">
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
+      <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Requests</h1>
           <p className="text-xs text-muted-foreground font-medium">Manage Maintenance</p>

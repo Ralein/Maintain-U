@@ -24,28 +24,22 @@ export default function AdminSettingsPage() {
     ]
 
     return (
-        <div className="min-h-screen bg-background pb-32">
+        <div className="min-h-screen pb-32">
             {/* Header */}
-            <header className="px-6 py-6 bg-primary text-primary-foreground pb-12 rounded-b-[2.5rem] shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-
-                <div className="flex items-center justify-between mb-6 relative z-10">
-                    <h1 className="text-2xl font-bold">Settings</h1>
-                    <ThemeToggle />
-                </div>
-
-                <div className="flex items-center gap-4 relative z-10">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-bold border border-white/30 shadow-inner">
+            <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20">
                         A
                     </div>
                     <div>
-                        <p className="font-bold text-lg">Admin User</p>
-                        <p className="text-primary-foreground/70 text-sm">Super Administrator</p>
+                        <h1 className="text-xl font-bold tracking-tight">Settings</h1>
+                        <p className="text-xs text-muted-foreground font-medium">Admin User</p>
                     </div>
                 </div>
+                <ThemeToggle />
             </header>
 
-            <main className="px-6 -mt-6 space-y-4 relative z-10">
+            <main className="px-6 py-6 space-y-4">
                 <div className="glass-card p-2 rounded-2xl">
                     {menuItems.map((item, idx) => (
                         <button

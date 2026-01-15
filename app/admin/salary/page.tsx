@@ -37,62 +37,69 @@ export default function AdminSalaryPage() {
   ]
 
   return (
-    <div className="min-h-screen px-6 pt-6 pb-32">
+    <div className="min-h-screen pb-32">
       {/* Header */}
-      <h1 className="text-2xl font-bold text-white mb-2">Salary Management</h1>
-      <p className="text-slate-400 text-sm mb-6">{period}</p>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        <div className="backdrop-blur-md bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-white/20 rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-blue-300 mb-1">₹52.45K</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Total Payable</div>
+      <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Salary Management</h1>
+          <p className="text-xs text-muted-foreground font-medium">{period}</p>
         </div>
-        <div className="backdrop-blur-md bg-gradient-to-br from-purple-500/20 to-purple-600/20 border border-white/20 rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-purple-300 mb-1">3</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Technicians</div>
-        </div>
-        <div className="backdrop-blur-md bg-gradient-to-br from-green-500/20 to-green-600/20 border border-white/20 rounded-2xl p-5 text-center">
-          <div className="text-3xl font-bold text-green-300 mb-1">66</div>
-          <div className="text-xs text-slate-400 uppercase tracking-wider">Work Days</div>
-        </div>
-      </div>
+      </header>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2 mb-6">
-        <button className="backdrop-blur-sm bg-white/5 border border-white/20 text-white font-semibold flex-1 py-3 text-sm rounded-xl hover:bg-white/10 hover:border-white/30 transition-all">
-          Select All
-        </button>
-        <button className="backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold flex-1 py-3 text-sm rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30">
-          Process
-        </button>
-      </div>
+      <main className="px-6 py-6 transition-all">
 
-      {/* Salary Table */}
-      <div className="space-y-3">
-        {salaryData.map((tech, idx) => (
-          <div
-            key={idx}
-            className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5 cursor-pointer group hover:bg-white/15 transition-all"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <p className="font-semibold text-white group-hover:text-blue-300 transition-colors">{tech.name}</p>
-                <p className="text-xs text-slate-400">{tech.netDays} net days</p>
-              </div>
-              <div className="text-right">
-                <p className="font-bold text-green-300">₹{tech.net.toLocaleString()}</p>
-                <p className="text-xs text-slate-400">Net payable</p>
-              </div>
-            </div>
-            <div className="text-xs text-slate-400 flex justify-between">
-              <span>Rate: ₹{tech.rate}/day</span>
-              <span>Deductions: ₹{tech.deductions}</span>
-            </div>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-3 mb-8">
+          <div className="glass-card bg-blue-500/10 border-blue-500/20 p-4 rounded-2xl text-center">
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-1">₹52.45K</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total Payable</div>
           </div>
-        ))}
-      </div>
+          <div className="glass-card bg-purple-500/10 border-purple-500/20 p-4 rounded-2xl text-center">
+            <div className="text-xl font-bold text-purple-600 dark:text-purple-400 mb-1">3</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Technicians</div>
+          </div>
+          <div className="glass-card bg-green-500/10 border-green-500/20 p-4 rounded-2xl text-center">
+            <div className="text-xl font-bold text-green-600 dark:text-green-400 mb-1">66</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Work Days</div>
+          </div>
+        </div>
 
+        {/* Action Buttons */}
+        <div className="flex gap-3 mb-6">
+          <button className="glass-card flex-1 py-3 text-sm font-bold rounded-xl hover:bg-muted/50 transition-all text-muted-foreground hover:text-foreground">
+            Select All
+          </button>
+          <button className="bg-primary text-primary-foreground font-bold flex-1 py-3 text-sm rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+            Process Payment
+          </button>
+        </div>
+
+        {/* Salary Table */}
+        <div className="space-y-3">
+          {salaryData.map((tech, idx) => (
+            <div
+              key={idx}
+              className="glass-card p-4 rounded-2xl cursor-pointer group hover:border-primary/30 transition-all border-white/20"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <p className="font-bold text-foreground group-hover:text-primary transition-colors">{tech.name}</p>
+                  <p className="text-xs text-muted-foreground">{tech.netDays} net days</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-green-600 dark:text-green-400">₹{tech.net.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">Net payable</p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground flex justify-between pt-2 border-t border-border/30">
+                <span className="font-medium bg-muted/50 px-2 py-0.5 rounded">Rate: ₹{tech.rate}/day</span>
+                <span className="font-medium bg-red-500/10 text-red-600 dark:text-red-400 px-2 py-0.5 rounded">Ded: ₹{tech.deductions}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </main>
       <BottomNav active="salary" role="admin" />
     </div>
   )

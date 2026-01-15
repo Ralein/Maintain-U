@@ -220,3 +220,7 @@ textarea {
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
+
+.app-gradient {
+  @apply bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900;
+}
