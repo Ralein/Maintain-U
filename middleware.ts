@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -9,10 +8,7 @@ export function middleware(request: NextRequest) {
     if (pathname.startsWith("/admin")) {
         const adminSession = request.cookies.get("admin_session");
 
-        // If accessing /admin/login specifically, allow it (but redirect if already logged in?)
-        // Actually we are using a separate /admin-login page now as per request
         if (pathname === "/admin") {
-            // Redirect root /admin to dashboard or login
             if (adminSession) {
                 return NextResponse.redirect(new URL("/admin/dashboard", request.url));
             } else {
@@ -21,17 +17,44 @@ export function middleware(request: NextRequest) {
         }
 
         if (!adminSession) {
-            // User is not authorized
             return NextResponse.redirect(new URL("/admin-login", request.url));
         }
+    }
 
-        // Check main session token for "Role" validity if we want to be extra strict?
-        // admin_session cookie is set strictly by adminLoginAction, so it implies success.
+    // User Session & Pending Check
+    const sessionToken = request.cookies.get("session_token");
+    const isPendingScreen = pathname === "/onboarding/pending";
+
+    if (sessionToken) {
+        try {
+            const session = JSON.parse(sessionToken.value);
+            // Check status.
+            const isPending = session.status === "pending";
+
+            if (isPending) {
+                if (!isPendingScreen) {
+                    return NextResponse.redirect(new URL("/onboarding/pending", request.url));
+                }
+            } else {
+                // Active or Banned? Middleware just handles pending wall.
+                // If Active and on pending screen, redirect to dashboard.
+                if (isPendingScreen) {
+                    const dashboardPath = session.role === "technician" ? "/" : "/company/dashboard";
+                    return NextResponse.redirect(new URL(dashboardPath, request.url));
+                }
+            }
+        } catch (e) {
+            // Invalid cookie
+        }
+    } else {
+        if (pathname.startsWith("/company") || pathname.startsWith("/technician")) {
+            return NextResponse.redirect(new URL("/signup", request.url));
+        }
     }
 
     return NextResponse.next();
 }
 
 export const config = {
-    matcher: ["/admin/:path*", "/admin"],
+    matcher: ["/admin/:path*", "/admin", "/company/:path*", "/technician/:path*", "/onboarding/pending"],
 };

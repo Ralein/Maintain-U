@@ -101,9 +101,9 @@ if (typeof window !== "undefined") {
 
 export const api = {
   // Auth
-  async sendOTP(phone: string) {
+  async sendOTP(phone: string, role?: string) {
     const { sendOTPAction } = await import("@/lib/actions")
-    return sendOTPAction(phone)
+    return sendOTPAction(phone, role)
   },
 
   async verifyOTP(phone: string, otp: string) {
@@ -121,18 +121,19 @@ export const api = {
     if (typeof window !== "undefined") {
       localStorage.removeItem("currentUser")
     }
-    return { success: true }
+    const { logoutAction } = await import("@/lib/actions")
+    return logoutAction()
+  },
+
+  async refreshSession() {
+    const { refreshSessionAction } = await import("@/lib/actions")
+    return refreshSessionAction()
   },
 
   // Company
   async registerCompany(data: any) {
-    await delay(DELAY_MS)
-    const user = { ...data, role: "company", id: `COMP-${Date.now()}` }
-    if (typeof window !== "undefined") {
-      localStorage.setItem("currentUser", JSON.stringify(user))
-      // Could store in a 'users' collection too
-    }
-    return { success: true, user }
+    const { registerCompanyAction } = await import("@/lib/actions")
+    return registerCompanyAction(data)
   },
 
   async getCompanyRequests(filters?: any) {

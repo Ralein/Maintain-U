@@ -9,7 +9,7 @@ import { toast } from "sonner"
 export default function CompanyRegisterContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get("phone")
+  const phone = searchParams?.get("phone")
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -33,7 +33,7 @@ export default function CompanyRegisterContent() {
       const res = await api.registerCompany({ phone, ...formData })
       if (res.success) {
         toast.success("Registration successful!")
-        router.push("/company/dashboard")
+        router.push("/onboarding/pending")
       }
     } catch (e) {
       toast.error("Registration failed")

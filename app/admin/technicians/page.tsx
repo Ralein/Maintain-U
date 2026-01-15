@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { Search, User, Check, X, Star } from "lucide-react"
@@ -33,9 +33,9 @@ export default function AdminTechniciansPage() {
     }
   }
 
-  useState(() => {
+  useEffect(() => {
     fetchTechs()
-  })
+  }, [])
 
   // Helper to handle approval
   const handleApprove = async (id: string, name: string) => {

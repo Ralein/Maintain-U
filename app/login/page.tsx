@@ -56,7 +56,7 @@ export default function LoginPage() {
         }
       } else {
         if (res.error === 'pending') {
-          toast.info("Account pending approval. Please contact admin.")
+          router.push("/onboarding/pending")
         } else if (res.error === 'banned') {
           toast.error("Account suspended. Access denied.")
         } else if (res.error === 'rejected') {

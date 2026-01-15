@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { ApprovalPoller } from "./approval-poller"
 
 function SignupContent() {
   const router = useRouter()
@@ -27,74 +28,19 @@ function SignupContent() {
     if (phone.length !== 10) return
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone)
+      const res = await api.sendOTP(phone, role)
       if (res.success) {
-        setStep("otp")
-        setResendTimer(30)
+        setStep("otp") // Now means "waiting"
       }
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return
-    const newOtp = [...otp]
-    newOtp[index] = value
-    setOtp(newOtp)
+  // OTP handling removed, replaced by Poller component below
+  // keeping empty functions/state to avoid breakages if references exist, 
+  // but strictly we just deleted the UI that used them.
 
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`)
-      nextInput?.focus()
-    }
-  }
-
-  const handleVerifyOTP = async () => {
-    const otpString = otp.join("")
-    if (otpString.length !== 6) return
-
-    setIsLoading(true)
-    // Simulate verification
-    try {
-      const res = await api.verifyOTP(phone, otpString) // Re-using verify logic to valid OTP
-      if (res.success) {
-        if (role === "company") {
-          router.push(`/register/company?phone=${phone}`)
-        } else {
-          router.push(`/register/technician?phone=${phone}`)
-        }
-      } else if (res.error === 'pending') {
-        // Even if pending, for signup flow we might want to let them fill details OR just show pending screen.
-        // The current flow seems to want them to fill details first? 
-        // Logic change: If pending, it means they just signed up.
-        // Let's redirect to a "Registration Received" or just show a success state here.
-        // But wait, the original flow was -> OTP -> Register Details -> Dashboard.
-        // If we block at OTP, they can't fill details.
-        // Let's assume for this mock that OTP *is* the signup for now as per this file's logic structure?
-        // Actually looking at `SignupContent` it pushes to `/register/...` which likely fills more info.
-        // We should probably allow them to proceed to Register page, and THEN prompt for Wait?
-        // OR better: The requirement says "once admin verifies automatically enter OTP on signup or Login".
-        // This implies they can't login.
-
-        // Revised plan for Signup:
-        // 1. OTP Verified (User created as pending)
-        // 2. Show "Registration Successful. Please wait for specific verification."
-        // 3. Do NOT redirect to /register/company yet? 
-        // If /register/company is needed to capture Name/etc, then we might need to allow that step 
-        // but block the final dashboard access?
-        // But `verifyOTP` in `lib/api` now creates the user.
-
-        // Let's stick to the prompt: "...enter a verification phase...".
-        // So we stop here.
-
-        // We can use a query param or just simple alert for now.
-        // Or update UI state to show success message.
-        router.push("/onboarding/pending") // We might need to create this page or just show toast
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
@@ -153,54 +99,22 @@ function SignupContent() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold">Enter OTP</h1>
-              <p className="text-muted-foreground">Sent to +91 {phone}</p>
+            <div className="space-y-2 text-center">
+              <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Loader2 className="w-8 h-8 text-orange-600 dark:text-orange-400 animate-spin" />
+              </div>
+              <h1 className="text-2xl font-bold">Waiting for Approval</h1>
+              <p className="text-muted-foreground">
+                An admin is verifying your phone number (+91 {phone}).<br />
+                Please wait...
+              </p>
             </div>
 
-            <div className="space-y-6">
-              {/* OTP Inputs */}
-              <div className="flex gap-2 justify-between">
-                {otp.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    id={`otp-${idx}`}
-                    type="text"
-                    inputMode="numeric"
-                    value={digit}
-                    onChange={(e) => handleOtpChange(idx, e.target.value)}
-                    className="w-11 h-11 rounded-lg border border-border bg-card text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                    maxLength={1}
-                  />
-                ))}
-              </div>
-
-              {/* Resend Timer */}
-              <div className="text-center">
-                {resendTimer > 0 ? (
-                  <p className="text-sm text-muted-foreground">Resend OTP in {resendTimer}s</p>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setStep("phone")
-                      setOtp(["", "", "", "", "", ""])
-                    }}
-                    className="text-sm text-primary font-semibold hover:underline"
-                  >
-                    Resend OTP
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={handleVerifyOTP}
-                disabled={otp.join("").length !== 6 || isLoading}
-                className="w-full py-3 px-6 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isLoading ? "Verifying..." : "Verify OTP"}
-              </button>
+            <div className="bg-muted/50 p-4 rounded-xl border border-border text-sm text-center">
+              <p>Once verified, you will be automatically redirected to complete your registration.</p>
             </div>
+
+            <ApprovalPoller phone={phone} role={role} />
           </div>
         )}
       </div>
