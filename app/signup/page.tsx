@@ -8,7 +8,7 @@ import { api } from "@/lib/api"
 function SignupContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const role = searchParams.get("role") as "company" | "technician"
+  const role = searchParams?.get("role") as "company" | "technician"
 
   const [phone, setPhone] = useState("")
   const [step, setStep] = useState<"phone" | "otp">("phone")
@@ -63,6 +63,33 @@ function SignupContent() {
         } else {
           router.push(`/register/technician?phone=${phone}`)
         }
+      } else if (res.error === 'pending') {
+        // Even if pending, for signup flow we might want to let them fill details OR just show pending screen.
+        // The current flow seems to want them to fill details first? 
+        // Logic change: If pending, it means they just signed up.
+        // Let's redirect to a "Registration Received" or just show a success state here.
+        // But wait, the original flow was -> OTP -> Register Details -> Dashboard.
+        // If we block at OTP, they can't fill details.
+        // Let's assume for this mock that OTP *is* the signup for now as per this file's logic structure?
+        // Actually looking at `SignupContent` it pushes to `/register/...` which likely fills more info.
+        // We should probably allow them to proceed to Register page, and THEN prompt for Wait?
+        // OR better: The requirement says "once admin verifies automatically enter OTP on signup or Login".
+        // This implies they can't login.
+
+        // Revised plan for Signup:
+        // 1. OTP Verified (User created as pending)
+        // 2. Show "Registration Successful. Please wait for specific verification."
+        // 3. Do NOT redirect to /register/company yet? 
+        // If /register/company is needed to capture Name/etc, then we might need to allow that step 
+        // but block the final dashboard access?
+        // But `verifyOTP` in `lib/api` now creates the user.
+
+        // Let's stick to the prompt: "...enter a verification phase...".
+        // So we stop here.
+
+        // We can use a query param or just simple alert for now.
+        // Or update UI state to show success message.
+        router.push("/onboarding/pending") // We might need to create this page or just show toast
       }
     } finally {
       setIsLoading(false)

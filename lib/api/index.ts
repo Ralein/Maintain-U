@@ -12,6 +12,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 export interface User {
   id: string
   role: "company" | "technician" | "admin"
+  status: "pending" | "active" | "banned" | "rejected"
   name?: string
   phone: string
   [key: string]: any
@@ -101,46 +102,13 @@ if (typeof window !== "undefined") {
 export const api = {
   // Auth
   async sendOTP(phone: string) {
-    await delay(DELAY_MS)
-    // console.log("[Mock] OTP sent to:", phone)
-    return { success: true, message: "OTP sent" }
+    const { sendOTPAction } = await import("@/lib/actions")
+    return sendOTPAction(phone)
   },
 
   async verifyOTP(phone: string, otp: string) {
-    await delay(DELAY_MS)
-
-    // Mock user roles based on phone numbers
-    let role: "company" | "technician" | "admin" = "company"
-    let name = "New User"
-
-    if (phone === "9876543210") {
-      role = "company"
-      name = "ABC Industries"
-    } else if (phone === "9876543211") {
-      role = "admin"
-      name = "Admin User"
-    } else if (phone === "9876543212") {
-      role = "technician"
-      name = "Raj Kumar"
-    } else if (phone === "9876543213") {
-      role = "admin" // Super admin
-    }
-
-    // Check if user exists in our "db", else create
-    // For simplicity in this mock, we just return the determined role
-    const user = {
-      id: `USER-${phone.slice(-4)}`,
-      phone,
-      role,
-      name
-    }
-
-    // Store current session
-    if (typeof window !== "undefined") {
-      localStorage.setItem("currentUser", JSON.stringify(user))
-    }
-
-    return { success: true, role, user }
+    const { verifyOTPAction } = await import("@/lib/actions")
+    return verifyOTPAction(phone, otp)
   },
 
   async getCurrentUser() {
@@ -330,26 +298,34 @@ export const api = {
   },
 
   async getTechnicians(filters?: string) {
-    await delay(DELAY_MS)
-    // Return some mock technicians if empty
-    let techs = DB.get("technicians")
-    if (techs.length === 0) {
-      techs = [
-        { id: "T1", name: "Raj Kumar", skill: "Electrical", status: "Active", rating: 4.8 },
-        { id: "T2", name: "Amit Singh", skill: "Mechanical", status: "Active", rating: 4.5 },
-        { id: "T3", name: "Sunil Verma", skill: "Plumbing", status: "Pending", rating: 0 },
-      ]
-    }
-    return { technicians: techs }
+    const { getTechniciansAction } = await import("@/lib/actions")
+    return getTechniciansAction()
+  },
+
+  async getUsers() {
+    const { getUsersAction } = await import("@/lib/actions")
+    return getUsersAction()
+  },
+
+  async updateUserStatus(userId: string, status: "active" | "banned" | "pending" | "rejected", role?: string) {
+    const { updateUserStatusAction } = await import("@/lib/actions")
+    return updateUserStatusAction(userId, status, role)
+  },
+
+  async adminLogin(phone: string, otp: string) {
+    const { adminLoginAction } = await import("@/lib/actions")
+    return adminLoginAction(phone, otp)
   },
 
   async approveTechnician(techId: string) {
+    // Legacy mock function - might need migration if using technicians table
     await delay(DELAY_MS)
     DB.update("technicians", techId, { status: "Active" })
     return { success: true }
   },
 
   async rejectTechnician(techId: string, reason: string) {
+    // Legacy mock function
     await delay(DELAY_MS)
     DB.update("technicians", techId, { status: "Rejected", reason })
     return { success: true }

@@ -3,48 +3,59 @@
 import { useState } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { BiUser, BiCheck, BiX, BiSearch } from "react-icons/bi"
+import { Search, User, Check, X, Star } from "lucide-react"
+import { api } from "@/lib/api"
 import { toast } from "sonner"
 
 export default function AdminTechniciansPage() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "active">("all")
-  const [technicians, setTechnicians] = useState({
-    all: [
-      { id: "T-001", name: "Raj Kumar", skill: "Electrical", rating: 4.8, status: "Available" },
-      { id: "T-002", name: "Priya Singh", skill: "Mechanical", rating: 4.6, status: "Available" },
-      { id: "T-003", name: "Amit Patel", skill: "HVAC", rating: 4.9, status: "Busy" },
-    ],
-    pending: [
-      { id: "T-004", name: "Rohan Verma", skill: "Electrical", rating: 0, status: "Pending" },
-      { id: "T-005", name: "Deepak Rao", skill: "Plumbing", rating: 0, status: "Pending" },
-    ],
-    active: [
-      { id: "T-001", name: "Raj Kumar", skill: "Electrical", rating: 4.8, status: "Available" },
-      { id: "T-003", name: "Amit Patel", skill: "HVAC", rating: 4.9, status: "Busy" },
-    ],
+  const [loading, setLoading] = useState(true)
+  const [technicians, setTechnicians] = useState<{ all: any[], pending: any[], active: any[] }>({
+    all: [],
+    pending: [],
+    active: []
   })
 
-  // Helper to handle approval
-  const handleApprove = (id: string, name: string) => {
-    toast.success(`Approved technician ${name}`)
-    // In a real app, API call here updates status. For UI demo:
-    const tech = technicians.pending.find(t => t.id === id)
-    if (tech) {
-      setTechnicians(prev => ({
-        ...prev,
-        pending: prev.pending.filter(t => t.id !== id),
-        active: [...prev.active, { ...tech, status: "Available" }],
-        all: [...prev.all.filter(t => t.id !== id), { ...tech, status: "Available" }]
-      }))
+  const fetchTechs = async () => {
+    try {
+      setLoading(true)
+      const res = await api.getTechnicians()
+      if (res.technicians) {
+        const all = res.technicians
+        const pending = all.filter((t: any) => t.status === 'Pending' || t.status === 'pending')
+        const active = all.filter((t: any) => t.status !== 'Pending' && t.status !== 'pending' && t.status !== 'Banned')
+        setTechnicians({ all, pending, active })
+      }
+    } catch (e) {
+      toast.error("Failed to load technicians")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleReject = (id: string, name: string) => {
-    toast.error(`Rejected technician ${name}`)
-    setTechnicians(prev => ({
-      ...prev,
-      pending: prev.pending.filter(t => t.id !== id)
-    }))
+  useState(() => {
+    fetchTechs()
+  })
+
+  // Helper to handle approval
+  const handleApprove = async (id: string, name: string) => {
+    try {
+      await api.updateUserStatus(id, "active")
+      toast.success(`Approved technician ${name}`)
+      fetchTechs()
+    } catch {
+      toast.error("Failed to approve")
+    }
+  }
+
+  const handleReject = async (id: string, name: string) => {
+    try {
+      await api.updateUserStatus(id, "rejected")
+      toast.error(`Rejected technician ${name}`)
+      fetchTechs()
+    } catch {
+      toast.error("Failed to reject")
+    }
   }
 
   // Determine list based on tab
@@ -70,7 +81,7 @@ export default function AdminTechniciansPage() {
         {/* Search */}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <BiSearch className="text-muted-foreground w-5 h-5" />
+            <Search className="text-muted-foreground w-5 h-5" />
           </div>
           <input
             type="text"
@@ -113,50 +124,53 @@ export default function AdminTechniciansPage() {
             currentList.map((tech) => (
               <div
                 key={tech.id}
-                className="glass-card p-4 rounded-2xl flex flex-col gap-4 group hover:border-primary/30"
+                className="glass-card p-4 rounded-2xl flex flex-col gap-4 group hover:border-primary/30 transition-all duration-300"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-2xl shadow-inner">
-                      <BiUser className="text-muted-foreground" />
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/50 dark:to-blue-900/50 flex items-center justify-center shadow-inner ring-1 ring-border/50">
+                      <User className="text-primary w-6 h-6" />
                     </div>
                     <div>
                       <p className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.name}</p>
-                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5">{tech.skill}</p>
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
+                        {tech.skill || "General Technician"}
+                      </p>
                     </div>
                   </div>
                   <span
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${tech.status === "Available"
-                      ? "bg-green-500/10 text-green-600"
-                      : tech.status === "Busy"
-                        ? "bg-orange-500/10 text-orange-600"
-                        : "bg-yellow-500/10 text-yellow-600"
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${tech.status === "Available"
+                      ? "bg-green-500/10 text-green-600 border-green-500/20"
+                      : tech.status === "Pending"
+                        ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                        : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                       }`}
                   >
                     {tech.status}
                   </span>
                 </div>
 
-                {activeTab === 'pending' ? (
-                  <div className="flex gap-2 pt-2 border-t border-border/50">
+                {activeTab === 'pending' || tech.status === 'Pending' ? (
+                  <div className="flex gap-2 pt-3 border-t border-border/40">
                     <button
                       onClick={() => handleApprove(tech.id, tech.name)}
-                      className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95"
+                      className="flex-1 py-2.5 rounded-xl bg-green-500 text-white font-semibold text-sm hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95"
                     >
-                      <BiCheck className="w-5 h-5" /> Approve
+                      <Check className="w-4 h-4" strokeWidth={2.5} /> Approve
                     </button>
                     <button
                       onClick={() => handleReject(tech.id, tech.name)}
-                      className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 dark:bg-red-900/10 dark:text-red-400 font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/30 active:scale-95"
+                      className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400 font-semibold text-sm hover:bg-red-100 dark:hover:bg-red-900/30 transition-all flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/30 active:scale-95"
                     >
-                      <BiX className="w-5 h-5" /> Reject
+                      <X className="w-4 h-4" strokeWidth={2.5} /> Reject
                     </button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
-                    <span>ID: <span className="font-mono">{tech.id}</span></span>
-                    <span className="flex items-center gap-1 text-yellow-500 font-bold">
-                      ★ {tech.rating > 0 ? tech.rating : 'N/A'}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/40">
+                    <span className="font-mono opacity-70">{tech.phone || tech.id.slice(0, 8)}</span>
+                    <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md">
+                      <Star className="w-3 h-3 fill-current" /> {tech.rating > 0 ? tech.rating : 'N/A'}
                     </span>
                   </div>
                 )}

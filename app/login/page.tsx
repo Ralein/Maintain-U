@@ -55,7 +55,15 @@ export default function LoginPage() {
           router.push("/admin/dashboard")
         }
       } else {
-        toast.error("Invalid OTP")
+        if (res.error === 'pending') {
+          toast.info("Account pending approval. Please contact admin.")
+        } else if (res.error === 'banned') {
+          toast.error("Account suspended. Access denied.")
+        } else if (res.error === 'rejected') {
+          toast.error("Registration rejected. Please contact support.")
+        } else {
+          toast.error("Invalid OTP")
+        }
       }
     } catch (error) {
       toast.error("Login failed")
