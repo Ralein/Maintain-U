@@ -114,7 +114,7 @@ function SignupContent() {
             <ChevronLeft className="w-5 h-5" strokeWidth={1.5} />
           </button>
           <span className="text-sm font-medium text-muted-foreground px-3 py-1 bg-muted rounded-full">
-            {role === "company" ? "Company Registration" : "Technician Registration"}
+            {role === "technician" ? "Technician Registration" : "Company Registration"}
           </span>
         </div>
 

@@ -140,26 +140,54 @@ export async function updateUserStatusAction(userId: string, status: "pending" |
 }
 
 // Admin Login Specific Action (for critical admin access)
-export async function adminLoginAction(phone: string, otp: string) {
-    // Stricter check?
-    // User asked for "verify the admin as well".
-    // We can check if user is ALREADY admin in DB.
+// Admin Login Specific Action (for critical admin access)
+export async function adminLoginAction(id: string, pass: string) {
+    // Hidden Credentials & Hashing
+    const ADMIN_ID = "Ralein Nova";
+    // SHA-256 hash of "Raleinnova12345"
+    const ADMIN_PASS_HASH = "8f3c78822026852ba71ab6316fa769f291307b23538bd13b711e59343729e20a";
 
-    // For now verifyOTPAction handles admin check, but we can make a specific one that ONLY allows admins.
-    const res = await verifyOTPAction(phone, otp);
+    // Server-side crypto check
+    const { createHash } = await import("crypto");
+    // Trim input ID to handle copy-paste whitespace
+    const cleanId = id.trim();
+    const inputHash = createHash("sha256").update(pass).digest("hex");
 
-    if (res.success && res.role === 'admin') {
-        // Set a special admin cookie? Or just the regular one is enough with middleware check?
-        // Let's set a specific `admin_session` for double safety as per "create a different way... verify admin"
-        (await cookies()).set("admin_session", "true", { httpOnly: true, path: '/' });
-        return res;
+    console.log("Admin Login Attempt:", { id: cleanId }); // Don't log password
+
+    if (cleanId === ADMIN_ID && inputHash === ADMIN_PASS_HASH) {
+        console.log("Credentials Valid. Checking DB...");
+        try {
+            // Check if admin user exists in DB for reference, or just ensure session
+            // We can upsert a record for "Ralein Nova" if we want to track actions
+            let user = await db.query.users.findFirst({
+                where: eq(users.phone, "admin-ralein-nova") // Internal ID mapping
+            });
+
+            if (!user) {
+                console.log("Creating new admin user record...");
+                [user] = await db.insert(users).values({
+                    phone: "admin-ralein-nova",
+                    role: "admin",
+                    status: "active",
+                    name: "Ralein Nova"
+                }).returning();
+            }
+
+            console.log("Setting session cookies...");
+            // Secure Session
+            (await cookies()).set("admin_session", "true", { httpOnly: true, path: '/' });
+            // Also set regular session for consistency if needed
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: "admin" }), { httpOnly: true, path: '/' });
+
+            return { success: true, role: "admin", user };
+        } catch (err) {
+            console.error("Admin Login DB/Cookie Error:", err);
+            return { success: false, message: "System Error during login processing" };
+        }
+    } else {
+        console.log("Invalid Credentials", { providedId: cleanId, expectedId: ADMIN_ID, hashMatch: inputHash === ADMIN_PASS_HASH });
     }
 
-    if (res.success && res.role !== 'admin') {
-        // Log them out immediately if they tried to login to admin portal
-        await logoutAction();
-        return { success: false, message: "Unauthorized. Not an admin." }
-    }
-
-    return res;
+    return { success: false, message: "Invalid Administration ID or Password" };
 }

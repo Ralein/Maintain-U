@@ -312,9 +312,9 @@ export const api = {
     return updateUserStatusAction(userId, status, role)
   },
 
-  async adminLogin(phone: string, otp: string) {
+  async adminLogin(id: string, pass: string) {
     const { adminLoginAction } = await import("@/lib/actions")
-    return adminLoginAction(phone, otp)
+    return adminLoginAction(id, pass)
   },
 
   async approveTechnician(techId: string) {
