@@ -10,6 +10,64 @@ import { cookies } from "next/headers"
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function sendOTPAction(phone: string) {
+    // Check if user exists first
+    const existingUsers = await db.select().from(users).where(eq(users.phone, phone)).limit(1)
+
+    if (existingUsers.length > 0) {
+        // User exists
+        const user = existingUsers[0]
+
+        // If pending, BLOCK OTP immediately
+        if (user.status === 'pending') {
+            // Refresh cookie just in case (optional, but good for redirection flow)
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
+            return { success: false, error: "pending", message: "Account pending verification" }
+        }
+
+        // Broaden the check for banned users
+        if (user.status === 'banned') {
+            return { success: false, error: "banned", message: "Account suspended" }
+        }
+
+        // Allow Rejected users to "Request Again" -> Reset to Pending
+        if (user.status === 'rejected') {
+            await db.update(users).set({ status: 'pending' }).where(eq(users.id, user.id));
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: 'pending' }), { httpOnly: true, path: '/' });
+            return { success: false, error: "pending", message: "Account re-submitted for verification" }
+        }
+    } else {
+        // New User - Create as Pending IMMEDIATELY (No OTP)
+        // Check for specific mockup numbers if needed, but otherwise default to Pending
+        let role: "company" | "technician" = "company"
+        let status: "pending" | "active" = "pending"
+
+        // Mock Support
+        if (phone === "9876543210") { role = "company"; status = "active"; }
+        else if (phone === "9876543212") { role = "technician"; status = "active"; }
+        else if (phone === "Raleinnova123" || phone === "9876543211" || phone === "9876543213") {
+            // Admin flows handled in verify, but if they try to get OTP we can just let them pass or handle casually
+            // For simplicity, let admins proceed to OTP step as they might be testing
+            // BUT implementation plan said "skip OTP for new users". 
+            // Admin isn't a "new user" in logic usually, but let's stick to the plan:
+            // If it's the specific admin phone, we allow OTP flow so they can login.
+        }
+
+        if (status === 'pending') {
+            const [newUser] = await db.insert(users).values({
+                phone,
+                role,
+                status,
+                name: "New User"
+            }).returning();
+
+            // Create session for pending user
+            (await cookies()).set("session_token", JSON.stringify({ userId: newUser.id, role: newUser.role, status: newUser.status }), { httpOnly: true, path: '/' });
+
+            return { success: false, error: "pending", message: "Account created, pending verification" }
+        }
+    }
+
+    // Existing "Active" User or Special Mock gets OTP
     // In a real app, integrate SMS provider here (Twilio, SNS, etc.)
     return { success: true, message: "OTP sent" }
 }
@@ -242,8 +300,136 @@ export async function refreshSessionAction() {
             (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
         }
 
-        return { success: true, status: user.status, role: user.role }
+        return {
+            success: true,
+            status: user.status,
+            role: user.role,
+            name: user.name,
+            phone: user.phone,
+            hasPassword: !!user.passwordHash // Check if user has set a password
+        }
     } catch (e) {
         return { success: false }
+    }
+}
+
+// Password Authentication Actions
+export async function setPasswordAction(password: string) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+
+    if (!sessionToken) {
+        return { success: false, message: "Not authenticated" }
+    }
+
+    try {
+        const session = JSON.parse(sessionToken.value)
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, session.userId)
+        })
+
+        if (!user) {
+            return { success: false, message: "User not found" }
+        }
+
+        if (user.status !== 'active') {
+            return { success: false, message: "Account not verified yet" }
+        }
+
+        // Validate password
+        if (!password || password.length < 8) {
+            return { success: false, message: "Password must be at least 8 characters" }
+        }
+
+        // Hash password
+        const { createHash } = await import("crypto")
+        const passwordHash = createHash("sha256").update(password).digest("hex")
+
+        // Update user with password
+        await db.update(users)
+            .set({ passwordHash, updatedAt: new Date() })
+            .where(eq(users.id, user.id))
+
+        return { success: true, message: "Password set successfully" }
+    } catch (e) {
+        console.error("Set password error:", e)
+        return { success: false, message: "Failed to set password" }
+    }
+}
+
+export async function loginWithPasswordAction(phone: string, password: string) {
+    try {
+        // Find user by phone
+        const user = await db.query.users.findFirst({
+            where: eq(users.phone, phone)
+        })
+
+        if (!user) {
+            return { success: false, message: "Account not found. Please sign up." }
+        }
+
+        // Check status
+        if (user.status === 'pending') {
+            // Set session for pending user to enable polling
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
+            return { success: false, error: 'pending', message: "Account pending verification" }
+        }
+
+        if (user.status === 'banned') {
+            return { success: false, error: 'banned', message: "Account suspended" }
+        }
+
+        if (user.status === 'rejected') {
+            return { success: false, error: 'rejected', message: "Registration rejected. Please contact support." }
+        }
+
+        // Check if user has set a password
+        if (!user.passwordHash) {
+            // User is active but hasn't set password yet - set session and redirect to password setup
+            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
+            return { success: false, error: 'no_password', message: "Please set up your password" }
+        }
+
+        // Verify password
+        const { createHash } = await import("crypto")
+        const passwordHash = createHash("sha256").update(password).digest("hex")
+
+        if (passwordHash !== user.passwordHash) {
+            return { success: false, message: "Invalid password" }
+        }
+
+        // Success - set session
+        (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
+
+        return {
+            success: true,
+            role: user.role,
+            user: {
+                id: user.id,
+                name: user.name,
+                phone: user.phone,
+                role: user.role
+            }
+        }
+    } catch (e) {
+        console.error("Login error:", e)
+        return { success: false, message: "Login failed. Please try again." }
+    }
+}
+
+export async function checkUserStatusAction(phone: string) {
+    const user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) {
+        return { exists: false }
+    }
+
+    return {
+        exists: true,
+        status: user.status,
+        role: user.role,
+        hasPassword: !!user.passwordHash
     }
 }

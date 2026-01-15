@@ -21,7 +21,13 @@ export default function UserOnboardingPage() {
             // API currently doesn't support complex filtering, so we fetch all and filter client-side
             const res = await api.getUsers()
             if (res && res.users) {
-                setUsers(res.users)
+                // Fix type mismatch: database returns null, frontend expects undefined? Or just handle it.
+                // Cast to any to bypass strict type check on the state setter if needed, or map it.
+                const typedUsers = res.users.map((u: any) => ({
+                    ...u,
+                    name: u.name || undefined
+                }))
+                setUsers(typedUsers)
             }
         } catch (error) {
             toast.error("Failed to load users")
@@ -54,7 +60,7 @@ export default function UserOnboardingPage() {
     }
 
     const filteredUsers = users.filter(user => {
-        const matchesFilter = filter === "all" ? true : user.status === filter
+        const matchesFilter = filter === "all" ? true : user.status.toLowerCase() === filter.toLowerCase()
         const matchesSearch = user.name?.toLowerCase().includes(search.toLowerCase()) ||
             user.phone.includes(search) ||
             user.role.toLowerCase().includes(search.toLowerCase())
@@ -104,8 +110,8 @@ export default function UserOnboardingPage() {
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all border ${filter === f
-                                        ? "bg-primary text-primary-foreground border-primary"
-                                        : "bg-card text-muted-foreground border-border hover:bg-muted"
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-card text-muted-foreground border-border hover:bg-muted"
                                     }`}
                             >
                                 {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -136,9 +142,9 @@ export default function UserOnboardingPage() {
                                                 {user.role}
                                             </span>
                                             <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold border ${user.status === "active" ? "bg-green-500/10 text-green-600 border-green-500/20" :
-                                                    user.status === "pending" ? "bg-orange-500/10 text-orange-600 border-orange-500/20" :
-                                                        user.status === "banned" ? "bg-red-500/10 text-red-600 border-red-500/20" :
-                                                            "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                                                user.status === "pending" ? "bg-orange-500/10 text-orange-600 border-orange-500/20" :
+                                                    user.status === "banned" ? "bg-red-500/10 text-red-600 border-red-500/20" :
+                                                        "bg-gray-500/10 text-gray-600 border-gray-500/20"
                                                 }`}>
                                                 {user.status}
                                             </span>
@@ -151,14 +157,14 @@ export default function UserOnboardingPage() {
 
                                 {/* Actions */}
                                 <div className="flex gap-2 pt-2 border-t border-border/50">
-                                    {user.status === "pending" && (
+                                    {(user.status === "pending" || (user.status as string) === "Pending") && (
                                         <>
                                             <button
                                                 onClick={() => handleStatusUpdate(user.id, "active")}
                                                 className="flex-1 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
                                             >
                                                 <Check className="w-3.5 h-3.5" />
-                                                Verify
+                                                Approve
                                             </button>
                                             <button
                                                 onClick={() => handleStatusUpdate(user.id, "rejected")}

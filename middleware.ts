@@ -24,6 +24,8 @@ export function middleware(request: NextRequest) {
     // User Session & Pending Check
     const sessionToken = request.cookies.get("session_token");
     const isPendingScreen = pathname === "/onboarding/pending";
+    const isRegisterScreen = pathname.startsWith("/register");
+    const isSetupPasswordScreen = pathname === "/setup-password";
 
     if (sessionToken) {
         try {
@@ -32,14 +34,15 @@ export function middleware(request: NextRequest) {
             const isPending = session.status === "pending";
 
             if (isPending) {
-                if (!isPendingScreen) {
-                    return NextResponse.redirect(new URL("/onboarding/pending", request.url));
+                // Allow pending users to access login page (for waiting state) or onboarding/pending
+                // Redirect away from protected routes
+                if (pathname.startsWith("/company") || pathname.startsWith("/technician") || isSetupPasswordScreen) {
+                    return NextResponse.redirect(new URL("/login", request.url));
                 }
             } else {
-                // Active or Banned? Middleware just handles pending wall.
-                // If Active and on pending screen, redirect to dashboard.
+                // Active user - redirect away from pending screen
                 if (isPendingScreen) {
-                    const dashboardPath = session.role === "technician" ? "/" : "/company/dashboard";
+                    const dashboardPath = session.role === "technician" ? "/technician/dashboard" : "/company/dashboard";
                     return NextResponse.redirect(new URL(dashboardPath, request.url));
                 }
             }
@@ -47,8 +50,9 @@ export function middleware(request: NextRequest) {
             // Invalid cookie
         }
     } else {
-        if (pathname.startsWith("/company") || pathname.startsWith("/technician")) {
-            return NextResponse.redirect(new URL("/signup", request.url));
+        // No session - redirect to login for protected routes
+        if (pathname.startsWith("/company") || pathname.startsWith("/technician") || isRegisterScreen || isSetupPasswordScreen) {
+            return NextResponse.redirect(new URL("/login", request.url));
         }
     }
 
@@ -56,5 +60,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/admin/:path*", "/admin", "/company/:path*", "/technician/:path*", "/onboarding/pending"],
+    matcher: ["/admin/:path*", "/admin", "/company/:path*", "/technician/:path*", "/onboarding/pending", "/register/:path*", "/setup-password"],
 };
+

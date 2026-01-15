@@ -13,11 +13,8 @@ export default function PendingVerificationPage() {
             try {
                 const res = await api.refreshSession()
                 if (res.success && res.status === 'active') {
-                    // Redirect based on role
-                    // For now default to company dashboard as requested
-                    // Or let middleware handle it by pushing to root/dashboard
-                    const path = res.role === 'technician' ? '/technician/dashboard' : '/company/dashboard';
-                    router.push(path)
+                    // Account approved! Redirect to password setup
+                    router.push("/setup-password")
                 }
             } catch (e) {
                 // ignore

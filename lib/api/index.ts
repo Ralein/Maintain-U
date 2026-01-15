@@ -101,9 +101,9 @@ if (typeof window !== "undefined") {
 
 export const api = {
   // Auth
-  async sendOTP(phone: string, role?: string) {
+  async sendOTP(phone: string) {
     const { sendOTPAction } = await import("@/lib/actions")
-    return sendOTPAction(phone, role)
+    return sendOTPAction(phone)
   },
 
   async verifyOTP(phone: string, otp: string) {
@@ -128,6 +128,21 @@ export const api = {
   async refreshSession() {
     const { refreshSessionAction } = await import("@/lib/actions")
     return refreshSessionAction()
+  },
+
+  async setPassword(password: string) {
+    const { setPasswordAction } = await import("@/lib/actions")
+    return setPasswordAction(password)
+  },
+
+  async loginWithPassword(phone: string, password: string) {
+    const { loginWithPasswordAction } = await import("@/lib/actions")
+    return loginWithPasswordAction(phone, password)
+  },
+
+  async checkUserStatus(phone: string) {
+    const { checkUserStatusAction } = await import("@/lib/actions")
+    return checkUserStatusAction(phone)
   },
 
   // Company

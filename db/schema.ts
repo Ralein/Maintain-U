@@ -7,6 +7,7 @@ export const statusEnum = pgEnum("status", ["pending", "active", "banned", "reje
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
     phone: text("phone").notNull().unique(),
+    passwordHash: text("password_hash"), // null until user sets password after verification
     role: roleEnum("role").notNull(),
     status: statusEnum("status").default("pending").notNull(),
     name: text("name"),
