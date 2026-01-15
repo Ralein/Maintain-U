@@ -15,6 +15,7 @@ export interface User {
   status: "pending" | "active" | "banned" | "rejected"
   name?: string
   phone: string
+  resetStatus?: "none" | "requested" | "approved"
   [key: string]: any
 }
 
@@ -326,6 +327,11 @@ export const api = {
   async updateUserStatus(userId: string, status: "active" | "banned" | "pending" | "rejected", role?: string) {
     const { updateUserStatusAction } = await import("@/lib/actions")
     return updateUserStatusAction(userId, status, role)
+  },
+
+  async approvePasswordReset(userId: string) {
+    const { approvePasswordResetAction } = await import("@/lib/actions")
+    return approvePasswordResetAction(userId)
   },
 
   async adminLogin(id: string, pass: string) {

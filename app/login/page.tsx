@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2 } from "lucide-react"
 import { api } from "@/lib/api"
+import { requestPasswordResetAction, checkResetStatusAction, completePasswordResetAction } from "@/lib/actions"
 import { toast } from "sonner"
 
 type Step = "login" | "verify-required" | "waiting" | "approved"
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [step, setStep] = useState<Step>("login")
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // OTP Animation State
@@ -36,17 +38,14 @@ export default function LoginPage() {
 
     const pollForApproval = async () => {
       try {
-        const res = await api.refreshSession()
-        if (res.success && res.status === 'active') {
-          // Stop polling
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current)
+        if (step === "waiting") {
+          const res = await api.refreshSession()
+          if (res.success && res.status === 'active') {
+            if (pollingRef.current) clearInterval(pollingRef.current)
             pollingRef.current = null
+            toast.success("Account approved!")
+            setStep("approved")
           }
-
-          toast.success("Account approved!")
-          // Transition to approved state with OTP animation
-          setStep("approved")
         }
       } catch (e) {
         // Silently ignore polling errors
@@ -54,6 +53,7 @@ export default function LoginPage() {
     }
 
     // Start polling every 3 seconds
+    if (pollingRef.current) clearInterval(pollingRef.current)
     pollingRef.current = setInterval(pollForApproval, 3000)
     // Also poll immediately
     pollForApproval()
@@ -61,6 +61,7 @@ export default function LoginPage() {
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current)
+        pollingRef.current = null
       }
     }
   }, [step, router])
@@ -99,6 +100,7 @@ export default function LoginPage() {
       toast.error("Please enter a valid 10-digit phone number")
       return
     }
+    setErrorMessage("")
 
     if (!password) {
       toast.error("Please enter your password")
@@ -129,6 +131,8 @@ export default function LoginPage() {
           toast.error("Account suspended. Access denied.")
         } else if (res.error === 'rejected') {
           toast.error("Registration rejected. Please contact support.")
+        } else if (res.error === 'not_found') {
+          setErrorMessage("No account available. Please Sign Up to continue.")
         } else {
           toast.error(res.message || "Login failed")
         }
@@ -212,6 +216,10 @@ export default function LoginPage() {
       clearInterval(pollingRef.current)
       pollingRef.current = null
     }
+  }
+
+  const handleForgotPassword = () => {
+    router.push("/reset-password")
   }
 
   return (
@@ -406,6 +414,7 @@ export default function LoginPage() {
 
             {/* Login Button */}
             <button
+              type="button"
               onClick={handleLogin}
               disabled={phone.length !== 10 || !password || isLoading}
               className="w-full py-3.5 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
@@ -414,9 +423,27 @@ export default function LoginPage() {
               {isLoading ? "Signing in..." : "Sign In"}
             </button>
           </div>
+        )
+        }
+
+        {/* Forgot Password Link (Only in Login mode) */}
+        {step === "login" && (
+          <div className="text-right mt-2 space-y-1">
+            <button
+              onClick={handleForgotPassword}
+              className="text-xs text-primary hover:underline font-medium"
+            >
+              Forgot Password?
+            </button>
+            {errorMessage && (
+              <div className="flex items-center justify-center gap-2 p-2 mt-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 animate-in slide-in-from-right-2">
+                <span className="text-[10px] font-medium text-center">{errorMessage}</span>
+              </div>
+            )}
+          </div>
         )}
 
-        {/* Signup / Get OTP Link */}
+        {/* Sign Up Link */}
         {step === "login" && (
           <div className="mt-8 pt-6 border-t border-border/50 text-center space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -426,14 +453,13 @@ export default function LoginPage() {
                 disabled={phone.length !== 10 || isLoading}
                 className="text-primary font-bold hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Get OTP
+                Sign Up
               </button>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Enter your phone number above, then click Get OTP
             </p>
           </div>
         )}
+
+
       </div>
     </div>
   )

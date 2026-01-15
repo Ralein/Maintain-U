@@ -2,7 +2,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users, requests, jobs, roleEnum, statusEnum } from "@/db/schema"
+import { users, requests, jobs, roleEnum, statusEnum, resetStatusEnum } from "@/db/schema"
 import { eq, or, and } from "drizzle-orm"
 import { cookies } from "next/headers"
 
@@ -306,7 +306,8 @@ export async function refreshSessionAction() {
             role: user.role,
             name: user.name,
             phone: user.phone,
-            hasPassword: !!user.passwordHash // Check if user has set a password
+            hasPassword: !!user.passwordHash,
+            resetStatus: user.resetStatus
         }
     } catch (e) {
         return { success: false }
@@ -347,7 +348,11 @@ export async function setPasswordAction(password: string) {
 
         // Update user with password
         await db.update(users)
-            .set({ passwordHash, updatedAt: new Date() })
+            .set({
+                passwordHash,
+                resetStatus: 'none', // Clear reset status
+                updatedAt: new Date()
+            })
             .where(eq(users.id, user.id))
 
         return { success: true, message: "Password set successfully" }
@@ -365,7 +370,7 @@ export async function loginWithPasswordAction(phone: string, password: string) {
         })
 
         if (!user) {
-            return { success: false, message: "Account not found. Please sign up." }
+            return { success: false, error: 'not_found', message: "Account not found. Please sign up." }
         }
 
         // Check status
@@ -432,4 +437,96 @@ export async function checkUserStatusAction(phone: string) {
         role: user.role,
         hasPassword: !!user.passwordHash
     }
+}
+
+export async function requestPasswordResetAction(phone: string) {
+    const user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) {
+        return { success: false, message: "Account not found" }
+    }
+
+    if (user.status !== 'active') {
+        return { success: false, message: "Account not active. Cannot reset password." }
+    }
+
+    await db.update(users)
+        .set({ resetStatus: 'requested' })
+        .where(eq(users.id, user.id))
+
+    return { success: true, message: "Request sent to admin" }
+}
+
+export async function checkResetStatusAction(phone: string) {
+    const user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) return { success: false, message: "User not found" }
+
+    return {
+        success: true,
+        resetStatus: user.resetStatus,
+        userId: user.id
+    }
+}
+
+export async function approvePasswordResetAction(userId: string) {
+    await db.update(users)
+        .set({ resetStatus: 'approved' })
+        .where(eq(users.id, userId))
+
+    return { success: true }
+}
+
+export async function loginWithResetApprovalAction(phone: string) {
+    const user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) return { success: false, message: "User not found" }
+
+    if (user.resetStatus !== 'approved') {
+        return { success: false, message: "Reset not approved" }
+    }
+
+    // Create session
+    (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
+
+    return { success: true }
+}
+
+export async function completePasswordResetAction(phone: string, password: string) {
+    const user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) {
+        return { success: false, message: "Account not found" }
+    }
+
+    if (user.resetStatus !== 'approved') {
+        return { success: false, message: "Reset request not approved yet" }
+    }
+
+    // Hash password
+    const { createHash } = await import("crypto")
+    const passwordHash = createHash("sha256").update(password).digest("hex")
+
+    await db.update(users)
+        .set({
+            passwordHash,
+            resetStatus: 'none',
+            updatedAt: new Date()
+        })
+        .where(eq(users.id, user.id))
+
+    return { success: true, message: "Password reset successfully" }
+}
+
+export async function getResetRequestsAction() {
+    const resetRequests = await db.select().from(users).where(eq(users.resetStatus, 'requested'));
+    return { requests: resetRequests }
 }

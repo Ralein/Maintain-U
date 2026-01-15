@@ -12,7 +12,7 @@ export default function UserOnboardingPage() {
     const router = useRouter()
     const [users, setUsers] = useState<User[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [filter, setFilter] = useState<"all" | "pending" | "active" | "banned">("pending")
+    const [filter, setFilter] = useState<"all" | "pending" | "active" | "banned" | "resets">("pending")
     const [search, setSearch] = useState("")
 
     const fetchUsers = async () => {
@@ -59,8 +59,28 @@ export default function UserOnboardingPage() {
         }
     }
 
+    const handleApproveReset = async (userId: string) => {
+        try {
+            // Optimistic update
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, resetStatus: "approved" } : u))
+
+            const res = await api.approvePasswordReset(userId)
+            if (res.success) {
+                toast.success("Password reset approved")
+            } else {
+                fetchUsers()
+                toast.error("Failed to approve reset")
+            }
+        } catch (error) {
+            fetchUsers()
+            toast.error("Error approving reset")
+        }
+    }
+
     const filteredUsers = users.filter(user => {
-        const matchesFilter = filter === "all" ? true : user.status.toLowerCase() === filter.toLowerCase()
+        const matchesFilter = filter === "all" ? true :
+            filter === "resets" ? user.resetStatus === "requested" :
+                user.status.toLowerCase() === filter.toLowerCase()
         const matchesSearch = user.name?.toLowerCase().includes(search.toLowerCase()) ||
             user.phone.includes(search) ||
             user.role.toLowerCase().includes(search.toLowerCase())
@@ -69,6 +89,7 @@ export default function UserOnboardingPage() {
 
     // Sort: Pending first
     filteredUsers.sort((a, b) => {
+        if (filter === "resets") return 0 // Keep default order for resets
         if (a.status === "pending" && b.status !== "pending") return -1
         if (a.status !== "pending" && b.status === "pending") return 1
         return 0
@@ -105,7 +126,7 @@ export default function UserOnboardingPage() {
                     </div>
 
                     <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                        {(["all", "pending", "active", "banned"] as const).map((f) => (
+                        {(["all", "pending", "active", "banned", "resets"] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
@@ -148,6 +169,11 @@ export default function UserOnboardingPage() {
                                                 }`}>
                                                 {user.status}
                                             </span>
+                                            {user.resetStatus === 'requested' && (
+                                                <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-yellow-500/10 text-yellow-600 border border-yellow-500/20">
+                                                    Reset Requested
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="text-[10px] text-muted-foreground">
@@ -175,6 +201,20 @@ export default function UserOnboardingPage() {
                                             </button>
                                         </>
                                     )}
+
+
+
+                                    <button
+                                        onClick={() => handleApproveReset(user.id)}
+                                        className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors mt-2 ${user.resetStatus === 'approved'
+                                                ? "bg-green-500/10 text-green-600 border border-green-500/20 cursor-default"
+                                                : "bg-yellow-500 hover:bg-yellow-600 text-white"
+                                            }`}
+                                        disabled={user.resetStatus === 'approved'}
+                                    >
+                                        <Shield className="w-3.5 h-3.5" />
+                                        {user.resetStatus === 'approved' ? "Reset Enabled" : "Enable Password Reset"}
+                                    </button>
 
                                     {user.status === "active" && (
                                         <button

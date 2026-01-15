@@ -32,8 +32,8 @@ export default function SetupPasswordPage() {
                     return
                 }
 
-                if (res.hasPassword) {
-                    // Already has password, go to dashboard or registration
+                if (res.hasPassword && res.resetStatus !== 'approved') {
+                    // Already has password and NOT in reset mode
                     if (res.name === "New User") {
                         router.push("/register/company")
                     } else {

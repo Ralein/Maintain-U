@@ -3,6 +3,7 @@ import { pgTable, text, timestamp, uuid, boolean, pgEnum } from "drizzle-orm/pg-
 
 export const roleEnum = pgEnum("role", ["admin", "company", "technician"]);
 export const statusEnum = pgEnum("status", ["pending", "active", "banned", "rejected"]);
+export const resetStatusEnum = pgEnum("reset_status", ["none", "requested", "approved"]);
 
 export const users = pgTable("users", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -10,6 +11,7 @@ export const users = pgTable("users", {
     passwordHash: text("password_hash"), // null until user sets password after verification
     role: roleEnum("role").notNull(),
     status: statusEnum("status").default("pending").notNull(),
+    resetStatus: resetStatusEnum("reset_status").default("none").notNull(),
     name: text("name"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
