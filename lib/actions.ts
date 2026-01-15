@@ -1,4 +1,3 @@
-
 "use server"
 
 import { db } from "@/lib/db"
@@ -17,8 +16,13 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
         // User exists
         const user = existingUsers[0]
 
-        // If pending, BLOCK OTP immediately
+        // If pending, BLOCK OTP immediately but UPDATE ROLE if changed
         if (user.status === 'pending') {
+            if (inputRole && inputRole !== user.role) {
+                await db.update(users).set({ role: inputRole }).where(eq(users.id, user.id));
+                user.role = inputRole; // Update local variable for session
+            }
+
             // Refresh cookie just in case (optional, but good for redirection flow)
             (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
             return { success: false, error: "pending", message: "Account pending verification" }
@@ -249,6 +253,7 @@ export async function adminLoginAction(id: string, pass: string) {
         try {
             // Check if admin user exists in DB for reference, or just ensure session
             // We can upsert a record for "Ralein Nova" if we want to track actions
+            // We can upsert a record for "Ralein Nova" if we want to track actions
             let user = await db.query.users.findFirst({
                 where: eq(users.phone, "admin-ralein-nova") // Internal ID mapping
             });
@@ -362,7 +367,8 @@ export async function setPasswordAction(password: string) {
     }
 }
 
-export async function loginWithPasswordAction(phone: string, password: string) {
+// Updated signature to accept inputRole
+export async function loginWithPasswordAction(phone: string, password: string, inputRole?: "company" | "technician") {
     try {
         // Find user by phone
         const user = await db.query.users.findFirst({
@@ -375,6 +381,12 @@ export async function loginWithPasswordAction(phone: string, password: string) {
 
         // Check status
         if (user.status === 'pending') {
+            // Update intent if role mismatch
+            if (inputRole && inputRole !== user.role) {
+                await db.update(users).set({ role: inputRole }).where(eq(users.id, user.id));
+                user.role = inputRole;
+            }
+
             // Set session for pending user to enable polling
             (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
             return { success: false, error: 'pending', message: "Account pending verification" }

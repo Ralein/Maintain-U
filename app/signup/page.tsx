@@ -129,7 +129,7 @@ function SignupContent() {
   const handleSubmitForVerification = async () => {
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone) // This creates the pending user
+      const res = await api.sendOTP(phone, role) // This creates the pending user
 
       if (res.error === 'pending' || (res.success === false && res.message.includes("pending"))) {
         toast.info(res.message || "Account submitted for verification")
@@ -137,7 +137,10 @@ function SignupContent() {
       } else if (res.success) {
         // Should not happen for new users usually given checkUserStatus, but safety net
         if (res.error === 'pending') setStep("waiting")
-        else setStep("otp") // Fallback
+        else {
+          toast.info("Account already active. Please login.")
+          router.push("/login")
+        }
       } else {
         // If "pending" comes back as error key
         if (res.error === 'pending') {

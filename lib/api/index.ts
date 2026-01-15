@@ -136,9 +136,9 @@ export const api = {
     return setPasswordAction(password)
   },
 
-  async loginWithPassword(phone: string, password: string) {
+  async loginWithPassword(phone: string, password: string, role?: "company" | "technician") {
     const { loginWithPasswordAction } = await import("@/lib/actions")
-    return loginWithPasswordAction(phone, password)
+    return loginWithPasswordAction(phone, password, role)
   },
 
   async checkUserStatus(phone: string) {

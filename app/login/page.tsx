@@ -110,23 +110,16 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      const res = await api.loginWithPassword(phone, password)
+      // Pass selected role to sync intent if pending
+      // If role is 'admin', we don't pass it as inputRole to avoid confusion, or map it safely on server?
+      // Server expects "company" | "technician". 
+      const inputRole = role === 'admin' ? undefined : role
+      const res = await api.loginWithPassword(phone, password, inputRole)
 
       if (res.success) {
-        // Validate Role Match
-        // Allow admins to login from any portal (hidden feature)
-        if (res.role !== 'admin' && res.role !== role) {
-          toast.error(`Access Denied: This account is a ${res.role}, not a ${role}.`)
-          setIsLoading(false)
-          return
-        }
-
-        // If I am selecting Admin (which is hidden now, but in case state is somehow set), but I am actually a Company user...
-        if (role === 'admin' && res.role !== 'admin') {
-          toast.error("Access Denied: You do not have administrator privileges.")
-          setIsLoading(false)
-          return
-        }
+        // Automatic Role Redirection
+        // We trust the backend response (safe-guarded by password) to determine where the user goes.
+        // The 'role' state from tabs is just a preference/UI state now.
 
         toast.success("Welcome back!")
         if (res.role === "company") {
@@ -339,6 +332,13 @@ export default function LoginPage() {
             >
               <Home className="w-4 h-4" />
               Try Different Number
+            </button>
+
+            <button
+              onClick={() => setStep("verify-required")}
+              className="w-full py-2 px-6 rounded-xl text-xs text-muted-foreground hover:text-primary transition-all font-medium flex items-center justify-center gap-2"
+            >
+              Selected wrong role? Re-submit Request
             </button>
           </div>
         ) : step === "verify-required" ? (

@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Search, User, Check, X, ShieldAlert, RotateCcw, Building2, Wrench } from "lucide-react"
+import { Search, User, Check, X, ShieldAlert, RotateCcw, Building2, Wrench, Filter } from "lucide-react"
 import { api, User as UserType } from "@/lib/api"
 import { toast } from "sonner"
 
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<"all" | "pending" | "active" | "banned" | "rejected" | "reset">("pending")
+    const [roleFilter, setRoleFilter] = useState<"all" | "company" | "technician">("all")
     const [loading, setLoading] = useState(true)
     const [users, setUsers] = useState<{
         all: UserType[],
@@ -83,13 +84,18 @@ export default function UserManagementPage() {
         }
     }
 
-    const filteredList = users[activeTab].filter(u =>
-        u.name?.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone.includes(search) ||
-        u.role.toLowerCase().includes(search.toLowerCase())
-    )
+    const filteredList = users[activeTab].filter(u => {
+        const matchesSearch = u.name?.toLowerCase().includes(search.toLowerCase()) ||
+            u.phone.includes(search) ||
+            u.role.toLowerCase().includes(search.toLowerCase())
+
+        const matchesRole = roleFilter === 'all' || u.role === roleFilter
+
+        return matchesSearch && matchesRole
+    })
 
     const tabs: Array<"all" | "pending" | "active" | "banned" | "rejected" | "reset"> = ["all", "pending", "active", "banned", "rejected", "reset"]
+    const roles: Array<"all" | "company" | "technician"> = ["all", "company", "technician"]
 
     return (
         <div className="min-h-screen pb-32">
@@ -122,7 +128,26 @@ export default function UserManagementPage() {
                     />
                 </div>
 
-                {/* Tabs */}
+                {/* Role Filter Tabs (Primary) */}
+                <div className="bg-muted/30 p-1.5 rounded-2xl flex gap-1">
+                    {roles.map((r) => (
+                        <button
+                            key={r}
+                            onClick={() => setRoleFilter(r)}
+                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${roleFilter === r
+                                ? "bg-white dark:bg-card shadow-sm text-primary ring-1 ring-border/50"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/30 dark:hover:bg-card/30"
+                                }`}
+                        >
+                            {r === 'all' && <Filter className="w-3.5 h-3.5" />}
+                            {r === 'company' && <Building2 className="w-3.5 h-3.5" />}
+                            {r === 'technician' && <Wrench className="w-3.5 h-3.5" />}
+                            {r}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Status Tabs (Secondary) */}
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                     {tabs.map((tab) => (
                         <button
@@ -152,8 +177,14 @@ export default function UserManagementPage() {
                 {/* List */}
                 <div className="space-y-3">
                     {filteredList.length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-border/60 rounded-2xl bg-muted/5">
-                            No users found
+                        <div className="text-center py-16 text-muted-foreground border border-dashed border-border/60 rounded-3xl bg-muted/5 flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                <Search className="w-8 h-8 opacity-20" />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-lg">No users found</p>
+                                <p className="text-xs opacity-60">Try adjusting your filters</p>
+                            </div>
                         </div>
                     ) : (
                         filteredList.map((user) => (
@@ -165,10 +196,10 @@ export default function UserManagementPage() {
                                     {/* User Info */}
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ring-1 ring-border/50 ${user.role === 'company'
-                                                ? 'bg-blue-50 dark:bg-blue-900/20'
-                                                : user.role === 'technician'
-                                                    ? 'bg-purple-50 dark:bg-purple-900/20'
-                                                    : 'bg-slate-50 dark:bg-slate-900/20'
+                                            ? 'bg-blue-50 dark:bg-blue-900/20'
+                                            : user.role === 'technician'
+                                                ? 'bg-purple-50 dark:bg-purple-900/20'
+                                                : 'bg-slate-50 dark:bg-slate-900/20'
                                             }`}>
                                             {user.role === 'company' && <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
                                             {user.role === 'technician' && <Wrench className="w-6 h-6 text-purple-600 dark:text-purple-400" />}
@@ -198,9 +229,9 @@ export default function UserManagementPage() {
                                                 </button>
 
                                                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${user.status === 'active' ? 'bg-green-500/10 text-green-600' :
-                                                        user.status === 'pending' ? 'bg-orange-500/10 text-orange-600' :
-                                                            user.status === 'banned' ? 'bg-red-500/10 text-red-600' :
-                                                                'bg-slate-500/10 text-muted-foreground'
+                                                    user.status === 'pending' ? 'bg-orange-500/10 text-orange-600' :
+                                                        user.status === 'banned' ? 'bg-red-500/10 text-red-600' :
+                                                            'bg-slate-500/10 text-muted-foreground'
                                                     }`}>
                                                     {user.status}
                                                 </span>
