@@ -1,46 +1,24 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { ArrowLeft, MapPin, Users, Loader2, Layers, Sun, Moon, Globe } from "lucide-react"
+import { ArrowLeft, MapPin, Loader2, Sun, Moon, Globe, Bell } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import dynamic from 'next/dynamic'
-import 'leaflet/dist/leaflet.css'
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { api } from "@/lib/api"
 
-// Dynamically import Leaflet components to avoid SSR issues
-const MapContainer = dynamic(
-    () => import('react-leaflet').then((mod) => mod.MapContainer),
-    { ssr: false, loading: () => <div className="h-full w-full bg-muted animate-pulse rounded-3xl" /> }
-)
-const TileLayer = dynamic(
-    () => import('react-leaflet').then((mod) => mod.TileLayer),
-    { ssr: false }
-)
-const Marker = dynamic(
-    () => import('react-leaflet').then((mod) => mod.Marker),
-    { ssr: false }
-)
-const Popup = dynamic(
-    () => import('react-leaflet').then((mod) => mod.Popup),
-    { ssr: false }
-)
-
-// Fix Leaflet default icon issue
-import L from 'leaflet'
-const icon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-})
-
-// Custom Icon for Teams
-const teamIcon = L.divIcon({
-    className: 'custom-team-icon',
-    html: `<div style="background-color: #3b82f6; color: white; border-radius: 9999px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Team</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
+// Lazy Load Map Component
+const LocationMap = dynamic(() => import('@/components/admin/LocationMap'), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full h-full min-h-[500px] bg-muted/10 animate-pulse flex items-center justify-center rounded-2xl border border-dashed border-border">
+            <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground font-medium">Loading Map...</span>
+            </div>
+        </div>
+    )
 })
 
 interface TechLocation {
@@ -55,128 +33,122 @@ interface TechLocation {
 export default function AdminLocationPage() {
     const router = useRouter()
     const [activeTechs, setActiveTechs] = useState<TechLocation[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loadingConfig, setLoadingConfig] = useState(true)
+    const [currentStyle, setCurrentStyle] = useState<"day" | "night" | "satellite">("day")
+
+    const mapStyles = {
+        day: {
+            url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+            name: "Day",
+            icon: Sun
+        },
+        night: {
+            url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+            name: "Night",
+            icon: Moon
+        },
+        satellite: {
+            url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            name: "Satellite",
+            icon: Globe
+        }
+    }
 
     useEffect(() => {
-        // Simulate fetching data
-        setTimeout(() => {
-            setActiveTechs([
-                { id: "T1", name: "Raj Kumar", lat: 12.9716, lng: 77.5946, status: "active", locationName: "MG Road, Bangalore" },
-                { id: "T2", name: "Amit Singh", lat: 12.9716, lng: 77.5946, status: "active", locationName: "MG Road, Bangalore" }, // Same location (Team)
-                { id: "T3", name: "Sara Khan", lat: 12.9352, lng: 77.6245, status: "active", locationName: "Koramangala, Bangalore" },
-            ])
-            setLoading(false)
-        }, 1000)
+        const fetchTechs = async () => {
+            try {
+                const res = await api.getTechnicians()
+                if (res.technicians) {
+                    const mapped = res.technicians
+                        .filter((t: any) => t.lat && t.lng)
+                        .map((t: any) => ({
+                            id: t.id,
+                            name: t.name,
+                            lat: t.lat,
+                            lng: t.lng,
+                            status: "active" as "active",
+                            locationName: t.locationName || "Unknown"
+                        }))
+                    setActiveTechs(mapped)
+                }
+            } catch (e) {
+                console.error("Failed to fetch locations", e)
+            } finally {
+                setLoadingConfig(false)
+            }
+        }
+        fetchTechs()
+
+        // Optional: Poll every 30 seconds
+        const interval = setInterval(fetchTechs, 30000)
+        return () => clearInterval(interval)
     }, [])
 
-    // Group technicians by location
-    const groupedLocations = activeTechs.reduce((acc, tech) => {
-        const key = `${tech.lat},${tech.lng}`
-        if (!acc[key]) {
-            acc[key] = []
-        }
-        acc[key].push(tech)
-        return acc
-    }, {} as Record<string, TechLocation[]>)
-
     return (
-        <div className="min-h-screen bg-background pb-32 flex flex-col">
+        <div className="min-h-screen pb-32 app-gradient">
             {/* Header */}
-            <div className="pt-8 px-6 pb-6 bg-background/80 backdrop-blur-md sticky top-0 z-20">
-                <button
-                    onClick={() => router.back()}
-                    className="mb-4 p-2.5 -ml-2 hover:bg-muted/50 rounded-full transition-colors flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    <span className="text-sm font-medium">Back to Dashboard</span>
-                </button>
-
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <MapPin className="w-6 h-6 text-primary" />
-                        Technician Locations
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-1">Live tracking of active workforce</p>
+            <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => router.back()}
+                        className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors -ml-2"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-bold tracking-tight">Live Map</h1>
+                        <p className="text-xs text-muted-foreground font-medium">Technician Tracking</p>
+                    </div>
                 </div>
-            </div>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <button className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm">
+                        <Bell className="w-5 h-5" />
+                    </button>
+                </div>
+            </header>
 
             {/* Map Area */}
-            <div className="flex-1 relative z-0">
-                {loading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    </div>
-                ) : (
-                    <MapContainer
-                        center={[12.9716, 77.5946] as any}
-                        zoom={12}
-                        style={{ height: '100%', width: '100%' }}
-                        className="z-0"
-                    >
-                        <TileLayer
-                            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                        />
+            <main className="px-6 py-6 h-[calc(100vh-140px)] min-h-[500px] flex flex-col">
+                <div className="flex-1 relative rounded-3xl overflow-hidden shadow-lg border border-border/50">
 
-                        {Object.values(groupedLocations).map((group, idx) => {
-                            const isTeam = group.length > 1
-                            const position: [number, number] = [group[0].lat, group[0].lng]
-
-                            return (
-                                <Marker
-                                    key={idx}
-                                    position={position}
-                                    icon={isTeam ? teamIcon : icon}
+                    {/* Layer Switcher */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
+                        <div className="glass-card p-1.5 rounded-xl flex flex-col gap-1 shadow-lg bg-white/90 dark:bg-black/80 backdrop-blur-xl">
+                            {Object.entries(mapStyles).map(([key, style]) => (
+                                <button
+                                    key={key}
+                                    onClick={() => setCurrentStyle(key as any)}
+                                    className={`p-2 rounded-lg transition-all flex items-center justify-center ${currentStyle === key ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                    title={style.name}
                                 >
-                                    <Popup className="rounded-xl overflow-hidden shadow-xl border-0">
-                                        <div className="p-1 min-w-[200px]">
-                                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
-                                                {isTeam ? <Users className="w-4 h-4 text-blue-500" /> : <MapPin className="w-4 h-4 text-primary" />}
-                                                <span className="font-bold text-sm">
-                                                    {isTeam ? "Team Location" : "Technician Location"}
-                                                </span>
-                                            </div>
+                                    <style.icon className="w-5 h-5" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                                            <p className="text-xs text-gray-500 mb-3 flex items-start gap-1">
-                                                <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                                                {group[0].locationName}
-                                            </p>
+                    {/* Lazy Loaded Map */}
+                    <LocationMap techs={activeTechs} mapStyleUrl={mapStyles[currentStyle].url} />
 
-                                            <div className="space-y-2">
-                                                {group.map(tech => (
-                                                    <div key={tech.id} className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-                                                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                                                            {tech.name.charAt(0)}
-                                                        </div>
-                                                        <span className="text-sm font-medium">{tech.name}</span>
-                                                        <span className="ml-auto w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Active" />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </Popup>
-                                </Marker>
-                            )
-                        })}
-                    </MapContainer>
-                )}
-            </div>
+                    {/* Floating Legend */}
+                    <div className="absolute bottom-6 left-6 right-6 p-4 glass-card rounded-2xl flex items-center justify-around text-xs font-medium z-[400] bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border border-border/10">
+                        <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                            Team
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]"></span>
+                            Single Tech
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                            Active Now
+                        </div>
+                    </div>
 
-            {/* Floating Legend / Info */}
-            <div className="absolute bottom-36 left-6 right-6 p-4 glass-card rounded-2xl flex items-center justify-around text-xs font-medium z-10 shadow-lg">
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                    Team
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-primary"></span>
-                    Single Tech
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                    Active Now
-                </div>
-            </div>
+            </main>
 
             <BottomNav active="home" role="admin" />
         </div>
