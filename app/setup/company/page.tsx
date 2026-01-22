@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, Loader2, MapPin, User, FileText } from "lucide-react"
+import { Building2, Loader2, MapPin, User, FileText, Mail } from "lucide-react"
 import { completeCompanyProfileAction } from "@/lib/actions"
 
 export default function CompanySetupPage() {
@@ -11,6 +11,7 @@ export default function CompanySetupPage() {
     const [loading, setLoading] = useState(false)
     const [formData, setFormData] = useState({
         companyName: "",
+        email: "",
         gstin: "",
         address: "",
         contactPerson: "",
@@ -58,6 +59,21 @@ export default function CompanySetupPage() {
                                 value={formData.companyName}
                                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium ml-1">Email Address</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="email"
+                                    required
+                                    placeholder="company@example.com"
+                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                />
+                            </div>
                         </div>
                     </div>
 

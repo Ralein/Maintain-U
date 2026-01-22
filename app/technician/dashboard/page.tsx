@@ -29,10 +29,14 @@ export default function TechnicianDashboard() {
     fetchData()
   }, [])
 
+  const completedCount = jobs.filter(j => j.status === 'Completed').length
+  const pendingCount = jobs.filter(j => j.status === 'Pending').length
+  const activeCount = jobs.filter(j => j.status === 'In Progress').length
+
   const stats = [
-    { label: "Days Worked", value: "12", color: "from-blue-500 to-blue-600" },
-    { label: "This Month", value: "₹8.5K", color: "from-green-500 to-green-600" },
-    { label: "Hours", value: "96", color: "from-purple-500 to-purple-600" },
+    { label: "Jobs Completed", value: completedCount.toString(), color: "from-green-500 to-green-600" },
+    { label: "Pending", value: pendingCount.toString(), color: "from-orange-500 to-orange-600" },
+    { label: "Active", value: activeCount.toString(), color: "from-blue-500 to-blue-600" },
   ]
 
   return (

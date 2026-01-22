@@ -3,13 +3,15 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Wrench, Loader2, MapPin, Briefcase, Star, Info } from "lucide-react"
+import { Wrench, Loader2, MapPin, Briefcase, Star, Info, X, User, Plus } from "lucide-react"
 import { completeTechnicianProfileAction } from "@/lib/actions"
 
 export default function TechnicianSetupPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [skillInput, setSkillInput] = useState("")
     const [formData, setFormData] = useState({
+        name: "",
         experience: "",
         primarySkill: "",
         skills: "",
@@ -50,6 +52,20 @@ export default function TechnicianSetupPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
+                        <label className="text-sm font-medium ml-1">Full Name</label>
+                        <div className="relative">
+                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <input
+                                type="text"
+                                required
+                                placeholder="Enter your full name"
+                                className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
                         <label className="text-sm font-medium ml-1">Primary Skill</label>
                         <div className="relative">
                             <Star className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -87,16 +103,72 @@ export default function TechnicianSetupPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium ml-1">Other Skills (Optional)</label>
-                        <div className="relative">
-                            <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="e.g. Welding, Painting (Comma separated)"
-                                className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                                value={formData.skills}
-                                onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                            />
+                        <label className="text-sm font-medium ml-1">Other Skills</label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    list="skill-options"
+                                    placeholder="Type or select a skill..."
+                                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                    value={skillInput}
+                                    onChange={(e) => setSkillInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            const val = skillInput.trim()
+                                            if (val) {
+                                                const current = formData.skills ? formData.skills.split(",").map(s => s.trim()).filter(Boolean) : []
+                                                if (!current.includes(val)) {
+                                                    setFormData({ ...formData, skills: [...current, val].join(", ") })
+                                                }
+                                                setSkillInput("")
+                                            }
+                                        }
+                                    }}
+                                />
+                                <datalist id="skill-options">
+                                    {["Welding", "Painting", "Drilling", "Carpentry", "Tiling", "Roofing", "Masonry", "Landscaping", "Cleaning", "Pest Control"].map(s => (
+                                        <option key={s} value={s} />
+                                    ))}
+                                </datalist>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const val = skillInput.trim()
+                                    if (val) {
+                                        const current = formData.skills ? formData.skills.split(",").map(s => s.trim()).filter(Boolean) : []
+                                        if (!current.includes(val)) {
+                                            setFormData({ ...formData, skills: [...current, val].join(", ") })
+                                        }
+                                        setSkillInput("")
+                                    }
+                                }}
+                                className="px-4 bg-primary/10 text-primary rounded-xl hover:bg-primary/20 transition-colors flex items-center justify-center"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Badges */}
+                        <div className="flex flex-wrap gap-2 mt-2 min-h-[30px]">
+                            {formData.skills.split(",").map(s => s.trim()).filter(Boolean).map((skill) => (
+                                <span key={skill} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center gap-1 animate-in fade-in zoom-in duration-200">
+                                    {skill}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const current = formData.skills.split(",").map(s => s.trim()).filter(Boolean)
+                                            setFormData({ ...formData, skills: current.filter(s => s !== skill).join(", ") })
+                                        }}
+                                        className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            ))}
                         </div>
                     </div>
 

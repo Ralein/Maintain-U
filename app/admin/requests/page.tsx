@@ -4,8 +4,19 @@ import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { Loader2, Bell, Search, Wrench, Clock, MapPin, Calendar, ArrowRight } from "lucide-react"
+import { Loader2, Bell, Search, Wrench, Clock, MapPin, Calendar, ArrowRight, Trash2 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function AdminRequestsPage() {
   const router = useRouter()
@@ -18,16 +29,18 @@ export default function AdminRequestsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.getRequests()
         if (res.requests) {
-          const newRequests = res.requests.filter((r: any) => r.status === "New")
-          const assignedRequests = res.requests.filter((r: any) => r.status === "Assigned")
-          const inProgressRequests = res.requests.filter((r: any) => r.status === "In Progress")
-          const completedRequests = res.requests.filter((r: any) => r.status === "Completed")
+          const newRequests = res.requests.filter((r: any) => r.status === "New") as Request[]
+          const assignedRequests = res.requests.filter((r: any) => r.status === "Assigned") as Request[]
+          const inProgressRequests = res.requests.filter((r: any) => r.status === "In Progress") as Request[]
+          const completedRequests = res.requests.filter((r: any) => r.status === "Completed") as Request[]
 
           setRequests({
             new: newRequests,
@@ -52,6 +65,30 @@ export default function AdminRequestsPage() {
     r.id.toLowerCase().includes(search.toLowerCase()) ||
     r.type.toLowerCase().includes(search.toLowerCase())
   )
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    setRequestToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!requestToDelete) return
+    try {
+      await api.deleteRequest(requestToDelete)
+      setRequests(prev => ({
+        ...prev,
+        [activeTab]: prev[activeTab].filter(r => r.id !== requestToDelete)
+      }))
+      toast.success("Request deleted")
+    } catch (e) {
+      console.error(e)
+      toast.error("Failed to delete")
+    } finally {
+      setDeleteDialogOpen(false)
+      setRequestToDelete(null)
+    }
+  }
 
   return (
     <div className="min-h-screen pb-32 app-gradient">
@@ -178,6 +215,15 @@ export default function AdminRequestsPage() {
                         Assign Team
                       </button>
                     )}
+                    {(activeTab === "assigned" || activeTab === "completed") && (
+                      <button
+                        onClick={(e) => handleDeleteClick(e, req.id)}
+                        className="px-3 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors dark:bg-red-950/30 dark:border-red-900 flex items-center justify-center"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -185,6 +231,21 @@ export default function AdminRequestsPage() {
           </div>
         )}
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the request and any associated job data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomNav active="jobs" role="admin" />
     </div>

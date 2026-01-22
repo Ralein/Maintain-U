@@ -22,6 +22,7 @@ export const companies = pgTable("companies", {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").references(() => users.id).notNull().unique(),
     companyName: text("company_name").notNull(),
+    email: text("email"),
     gstin: text("gstin"), // Optional for now, or mandatory depending on requirements
     address: text("address"),
     contactPerson: text("contact_person"),

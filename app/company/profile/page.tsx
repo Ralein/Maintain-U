@@ -4,21 +4,52 @@ import { BottomNav } from "@/components/navigation/bottom-nav"
 import { BiUser, BiCog, BiLogOut, BiChevronRight, BiBuilding, BiPhone, BiEnvelope, BiCreditCard, BiShield, BiEdit } from "react-icons/bi"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useEffect, useState } from "react"
+import { getCompanyProfileAction } from "@/lib/actions"
+import { api } from "@/lib/api"
 
 export default function CompanyProfile() {
     const router = useRouter()
 
-    const handleLogout = () => {
-        toast.success("Logged out successfully")
+    const [profile, setProfile] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const res = await getCompanyProfileAction()
+                if (res.success) {
+                    setProfile(res.data)
+                } else {
+                    toast.error("Failed to load profile")
+                }
+            } catch (e) {
+                toast.error("An error occurred")
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchProfile()
+    }, [])
+
+    const handleLogout = async () => {
+        await api.logout()
         router.push("/login")
     }
 
     const menuItems = [
-        { icon: BiBuilding, label: "Company Details", value: "ABC Industries" },
-        { icon: BiPhone, label: "Contact Phone", value: "+91 98765 43210" },
-        { icon: BiEnvelope, label: "Email Address", value: "admin@abc-ind.com" },
-        { icon: BiCreditCard, label: "Subscription", value: "Pro Plan" },
+        { icon: BiBuilding, label: "Company Details", value: profile?.companyName || "Loading..." },
+        { icon: BiPhone, label: "Contact Phone", value: profile?.phone || "Loading..." },
+        { icon: BiEnvelope, label: "Email Address", value: profile?.email || "admin@example.com" },
     ]
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-background pb-32">
@@ -33,8 +64,10 @@ export default function CompanyProfile() {
                             <BiEdit className="w-4 h-4" />
                         </button>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight mb-1">ABC Industries</h1>
-                    <p className="text-sm text-muted-foreground font-medium bg-background/50 backdrop-blur px-3 py-1 rounded-full border border-border/50">#COMP-001 • Manufacturing</p>
+                    <h1 className="text-2xl font-bold tracking-tight mb-1">{profile?.companyName || "Company Profile"}</h1>
+                    <p className="text-sm text-muted-foreground font-medium bg-background/50 backdrop-blur px-3 py-1 rounded-full border border-border/50">
+                        #COMP-{profile?.userId?.substring(0, 4) || "000"} • {profile?.industry || "General"}
+                    </p>
                 </div>
             </div>
 

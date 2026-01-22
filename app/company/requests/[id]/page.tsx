@@ -1,7 +1,7 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
+import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone, AlertTriangle, FileText, Briefcase } from "lucide-react"
 import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -30,7 +30,7 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
@@ -38,88 +38,151 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
 
   if (!request) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
         <p className="text-muted-foreground">Request not found</p>
-        <button onClick={() => router.back()} className="text-primary hover:underline">Go Back</button>
+        <button onClick={() => router.back()} className="text-primary hover:underline font-medium">Go Back</button>
       </div>
     )
   }
 
-  const timeline = [
-    { step: "Submitted", date: request.date, status: "completed" },
-    { step: "Reviewed", date: request.status !== "New" ? "Completed" : "Pending", status: request.status !== "New" ? "completed" : "pending" },
-    { step: "Team Assigned", date: request.status === "Assigned" || request.status === "In Progress" || request.status === "Completed" ? "Completed" : "Pending", status: request.status === "Assigned" || request.status === "In Progress" || request.status === "Completed" ? "completed" : "pending" },
-    { step: "Work Started", date: request.status === "In Progress" || request.status === "Completed" ? "Started" : "Pending", status: request.status === "In Progress" || request.status === "Completed" ? "completed" : "pending" },
-    { step: "Completed", date: request.status === "Completed" ? "Done" : "Pending", status: request.status === "Completed" ? "completed" : "pending" },
-  ]
+  const steps = ["New", "Assigned", "In Progress", "Completed"]
+  const currentStepIndex = steps.indexOf(request.status)
+  const isCancelled = request.status === "Cancelled"
 
   return (
-    <div className="min-h-screen px-6 pt-6 pb-32">
+    <div className="min-h-screen bg-background pb-32 relative">
+      {/* Background Decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-3xl opacity-50" />
+      </div>
+
       {/* Header */}
-      <div className="mb-8">
-        <button onClick={() => router.back()} className="mb-4 p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
+      <div className="relative pt-8 px-6 pb-6">
+        <button
+          onClick={() => router.back()}
+          className="mb-6 p-2.5 -ml-2 hover:bg-muted/50 rounded-full transition-colors flex items-center gap-2 text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">Back</span>
         </button>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">{request.id}</h1>
-        </div>
-        <div className="mt-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${request.status === 'Completed' ? 'bg-green-100 text-green-700' :
-            request.status === 'In Progress' ? 'bg-orange-100 text-orange-700' :
-              'bg-blue-100 text-blue-700'
-            }`}>
-            {request.status}
-          </span>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary uppercase tracking-wider border border-primary/20">
+              {request.type} Service
+            </span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${request.priority === 'Urgent' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                request.priority === 'Emergency' ? 'bg-red-600/10 text-red-600 border-red-600/20' :
+                  'bg-blue-500/10 text-blue-500 border-blue-500/20'
+              }`}>
+              {request.priority}
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight mt-2">{request.description}</h1>
+          <p className="text-muted-foreground font-mono text-xs">ID: {request.id}</p>
         </div>
       </div>
 
-      {/* Status Timeline */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold mb-4">Progress</h2>
-        <div className="space-y-4">
-          {timeline.map((item, idx) => (
-            <div key={idx} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${item.status === "completed" ? "bg-green-500 border-green-400" : "bg-muted border-border"
-                    }`}
-                >
-                  {item.status === "completed" && <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={2} />}
+      <div className="px-6 space-y-6 relative z-10">
+
+        {/* Progress Card */}
+        <section className="glass-card p-6 rounded-3xl shadow-xl shadow-black/5 dark:shadow-black/20 border-t border-white/10">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary" />
+            Request Timeline
+          </h2>
+
+          <div className="relative pl-4 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-muted/50">
+            {steps.map((step, idx) => {
+              const isCompleted = currentStepIndex >= idx
+              const isCurrent = currentStepIndex === idx
+              return (
+                <div key={step} className="relative flex items-center gap-4 group">
+                  <div className={`
+                                 absolute left-[-5px] w-4 h-4 rounded-full border-2 transition-all duration-500 z-10
+                                 ${isCompleted || isCurrent ? 'bg-primary border-primary shadow-[0_0_10px_rgba(var(--primary),0.4)]' : 'bg-background border-muted group-hover:border-primary/50'}
+                             `}>
+                    {isCompleted && <CheckCircle2 className="w-full h-full text-primary-foreground p-[1px]" />}
+                  </div>
+                  <div className={`transition-all duration-300 ${isCurrent ? 'translate-x-1' : ''}`}>
+                    <p className={`text-sm font-bold ${isCompleted || isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>{step}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">
+                      {isCompleted ? "Completed" : isCurrent ? "Current Stage" : "Pending"}
+                    </p>
+                  </div>
                 </div>
-                {idx < timeline.length - 1 && (
-                  <div className={`w-0.5 h-12 ${item.status === "completed" ? "bg-green-500" : "bg-muted"}`} />
-                )}
-              </div>
-              <div className="pb-4">
-                <p className="font-semibold">{item.step}</p>
-                <p className="text-sm text-muted-foreground">{item.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              )
+            })}
+          </div>
+        </section>
 
-      {/* Request Details */}
-      <div className="mb-8">
-        <h2 className="text-lg font-bold mb-4">Details</h2>
-        <div className="space-y-3">
-          <div className="p-4 rounded-lg bg-card border border-border">
-            <p className="text-xs text-muted-foreground mb-1">Service Type</p>
-            <p className="font-semibold">{request.type}</p>
+        {/* Details Grid */}
+        <section className="grid grid-cols-2 gap-3">
+          <div className="glass-card p-4 rounded-2xl flex flex-col gap-2 hover:bg-muted/30 transition-colors">
+            <Calendar className="w-5 h-5 text-blue-500" />
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Date</p>
+              <p className="font-semibold text-sm">{request.date}</p>
+            </div>
           </div>
-          <div className="p-4 rounded-lg bg-card border border-border">
-            <p className="text-xs text-muted-foreground mb-1">Priority</p>
-            <p className="font-semibold">{request.priority}</p>
+          <div className="glass-card p-4 rounded-2xl flex flex-col gap-2 hover:bg-muted/30 transition-colors">
+            <Clock className="w-5 h-5 text-orange-500" />
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Time Slot</p>
+              <p className="font-semibold text-sm">{request.timeSlot || "Anytime"}</p>
+            </div>
           </div>
-          <div className="p-4 rounded-lg bg-card border border-border">
-            <p className="text-xs text-muted-foreground mb-1">Description</p>
-            <p>{request.description}</p>
+          <div className="glass-card p-4 rounded-2xl flex flex-col gap-2 hover:bg-muted/30 transition-colors col-span-2">
+            <FileText className="w-5 h-5 text-purple-500" />
+            <div>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Description</p>
+              <p className="text-sm leading-relaxed text-muted-foreground text-foreground/80">{request.description}</p>
+            </div>
           </div>
-          <div className="p-4 rounded-lg bg-card border border-border">
-            <p className="text-xs text-muted-foreground mb-1">Scheduled Date</p>
-            <p className="font-semibold">{request.date} {request.timeSlot && `- ${request.timeSlot}`}</p>
-          </div>
-        </div>
+        </section>
+
+        {/* Assigned Team (Supervisor) */}
+        {request.supervisor && (
+          <section className="glass-card p-6 rounded-3xl">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-primary" />
+              Assigned Team
+            </h2>
+            <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-2xl border border-border/50">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                {request.supervisor.charAt(0)}
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-sm">{request.supervisor}</p>
+                <p className="text-xs text-muted-foreground">Site Supervisor</p>
+              </div>
+              {request.supervisorPhone && (
+                <a href={`tel:${request.supervisorPhone}`} className="p-2.5 bg-green-500/10 text-green-600 rounded-xl hover:bg-green-500/20 transition-colors">
+                  <Phone className="w-5 h-5" />
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Photos (if any) */}
+        {request.photos && request.photos.length > 0 && (
+          <section>
+            <h2 className="text-lg font-bold mb-4 px-1">Attached Photos</h2>
+            <div className="flex gap-3 overflow-x-auto pb-4 snap-x">
+              {request.photos.map((url: string, i: number) => (
+                <div key={i} className="flex-none w-40 aspect-square rounded-2xl bg-muted overflow-hidden relative snap-center shadow-lg">
+                  {/* In real app, use next/image with full url */}
+                  <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-muted">
+                    <span className="text-xs">Photo {i + 1}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
       </div>
 
       <BottomNav active="requests" role="company" />

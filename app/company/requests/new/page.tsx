@@ -40,6 +40,8 @@ export default function NewRequestPage() {
       if (res.success) {
         toast.success("Request created successfully")
         router.push(`/company/requests/${res.id}`)
+      } else {
+        toast.error(res.message || "Failed to create request")
       }
     } catch (e) {
       toast.error("Failed to create request")
@@ -247,7 +249,7 @@ export default function NewRequestPage() {
               <div className="glass-card p-5 rounded-2xl">
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Priority</p>
                 <p className={`text-lg font-semibold ${formData.priority === 'Urgent' ? 'text-orange-600' :
-                    formData.priority === 'Emergency' ? 'text-red-600' : ''
+                  formData.priority === 'Emergency' ? 'text-red-600' : ''
                   }`}>{formData.priority}</p>
               </div>
               <div className="glass-card p-5 rounded-2xl">

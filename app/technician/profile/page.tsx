@@ -4,12 +4,33 @@ import { BottomNav } from "@/components/navigation/bottom-nav"
 import { User, Settings, LogOut, ChevronRight, PenTool, Star, Award, MapPin } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useEffect, useState } from "react"
+import { getTechnicianProfileAction } from "@/lib/actions"
+import { api } from "@/lib/api"
 
 export default function TechnicianProfile() {
     const router = useRouter()
+    const [profile, setProfile] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
 
-    const handleLogout = () => {
-        toast.success("Logged out successfully")
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const res = await getTechnicianProfileAction()
+                if (res.success) {
+                    setProfile(res.data)
+                }
+            } catch (e) {
+                // silent error
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchProfile()
+    }, [])
+
+    const handleLogout = async () => {
+        await api.logout()
         router.push("/login")
     }
 
@@ -24,9 +45,9 @@ export default function TechnicianProfile() {
                             4.8
                         </div>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">John Doe</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{profile?.name || "Technician Name"}</h1>
                     <p className="text-sm text-muted-foreground font-medium flex items-center gap-1">
-                        <PenTool className="w-3 h-3" /> Senior Electrician
+                        <PenTool className="w-3 h-3" /> {profile?.primarySkill || "Skill Not Set"}
                     </p>
                 </div>
             </div>
@@ -59,7 +80,7 @@ export default function TechnicianProfile() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground font-medium">Service Area</p>
-                                <p className="text-sm font-semibold">North Industrial Zone</p>
+                                <p className="text-sm font-semibold">{profile?.address || "Not Set"}</p>
                             </div>
                         </div>
                     </div>
@@ -70,7 +91,7 @@ export default function TechnicianProfile() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground font-medium">Expertise</p>
-                                <p className="text-sm font-semibold">High Voltage Systems</p>
+                                <p className="text-sm font-semibold">{profile?.primarySkill || "Not Set"}</p>
                             </div>
                         </div>
                     </div>

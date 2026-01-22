@@ -176,9 +176,7 @@ export async function registerCompanyAction(data: any) {
             role: 'company',
             status: 'pending', // Force pending
             name: companyName, // Use company name as main name
-            // In a real app we would have a separate 'companies' table for details like GST/Industry
-            // For now we just store the user. The extra fields are lost in this simple schema
-            // BUT for the MVP admin view, we just need the user record.
+            profileCompleted: true
         }).where(eq(users.id, existing[0].id)).returning();
     } else {
         // Create new
@@ -187,7 +185,22 @@ export async function registerCompanyAction(data: any) {
             role: 'company',
             status: 'pending',
             name: companyName,
+            profileCompleted: true
         }).returning();
+    }
+
+    // Auto-create/Ensure Company Profile
+    const existingProfile = await db.query.companies.findFirst({
+        where: eq(companies.userId, user.id)
+    })
+
+    if (!existingProfile) {
+        await db.insert(companies).values({
+            userId: user.id,
+            companyName: companyName,
+            gstin: gst || "",
+            address: address || ""
+        })
     }
 
     // Set/Update session
@@ -584,30 +597,96 @@ export async function getResetRequestsAction() {
     return { requests: resetRequests }
 }
 
+export async function getTechnicianProfileAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false }
+    const session = JSON.parse(sessionToken.value)
+
+    const tech = await db.query.technicians.findFirst({
+        where: eq(technicians.userId, session.userId)
+    })
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, session.userId)
+    })
+
+    if (!tech || !user) return { success: false }
+
+    return {
+        success: true,
+        data: {
+            ...tech,
+            name: user.name,
+            phone: user.phone
+        }
+    }
+}
+
+export async function getCompanyProfileAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false }
+    const session = JSON.parse(sessionToken.value)
+
+    const company = await db.query.companies.findFirst({
+        where: eq(companies.userId, session.userId)
+    })
+
+    const user = await db.query.users.findFirst({
+        where: eq(users.id, session.userId)
+    })
+
+    if (!company || !user) return { success: false }
+
+    return {
+        success: true,
+        data: {
+            ...company,
+            phone: user.phone,
+            email: company.email || "admin@company.com",
+            subscription: "Pro Plan" // Placeholder
+        }
+    }
+}
+
 // Service Request Actions
 export async function createRequestAction(data: any) {
+    console.log("createRequestAction called with:", JSON.stringify(data, null, 2))
     const cookieStore = await cookies()
     const sessionToken = cookieStore.get("session_token")
 
-    if (!sessionToken) return { success: false, message: "Not authenticated" }
+    if (!sessionToken) {
+        console.log("createRequestAction failed: No session token")
+        return { success: false, message: "Not authenticated" }
+    }
 
     const session = JSON.parse(sessionToken.value)
+    console.log("createRequestAction session:", JSON.stringify(session, null, 2))
 
     if (session.role !== 'company') {
+        console.log("createRequestAction failed: Role mismatch. Expected 'company', got:", session.role)
         return { success: false, message: "Only companies can create requests" }
     }
 
-    // Get company details from user
+    // Get company details (first check companies table for profile)
+    const companyProfile = await db.query.companies.findFirst({
+        where: eq(companies.userId, session.userId)
+    })
+
     const companyUser = await db.query.users.findFirst({
         where: eq(users.id, session.userId)
     })
 
-    if (!companyUser) return { success: false, message: "User not found" }
+    if (!companyUser) {
+        console.log("createRequestAction failed: User not found in database. userId:", session.userId)
+        return { success: false, message: "User not found" }
+    }
 
     try {
         const [newReq] = await db.insert(requests).values({
-            companyId: companyUser.id,
-            companyName: companyUser.name || "Unknown Company",
+            companyId: session.userId, // Storing User ID as Company ID to match retrieval logic
+            companyName: companyProfile?.companyName || companyUser.name || "Unknown Company",
             type: data.serviceType,
             priority: data.priority,
             description: data.description,
@@ -620,9 +699,9 @@ export async function createRequestAction(data: any) {
         }).returning();
 
         return { success: true, id: newReq.id }
-    } catch (e) {
+    } catch (e: any) {
         console.error("Create request error:", e)
-        return { success: false, message: "Failed to create request" }
+        return { success: false, message: `Failed to create request: ${e.message || JSON.stringify(e)}` }
     }
 }
 
@@ -645,6 +724,11 @@ export async function registerTechnicianAction(data: any) {
             status: 'pending',
             name: techData.name
         }).returning();
+
+        // Auto-create profile immediately
+        await db.insert(technicians).values({
+            userId: user.id
+        })
     } else {
         // Update name
         await db.update(users).set({
@@ -719,6 +803,19 @@ export async function getRequestByIdAction(id: string) {
         where: eq(requests.id, id)
     })
     return { request }
+}
+
+export async function deleteRequestAction(id: string) {
+    try {
+        // Delete associated jobs first
+        await db.delete(jobs).where(eq(jobs.requestId, id))
+        // Delete request
+        await db.delete(requests).where(eq(requests.id, id))
+        return { success: true }
+    } catch (error) {
+        console.error("Delete request error:", error)
+        return { success: false, message: "Failed to delete request" }
+    }
 }
 
 export async function assignTeamAction(requestId: string, techIds: string[], leadId: string) {
@@ -956,7 +1053,7 @@ export async function completeJobAction(jobId: string, signature: string) {
 
 // Profile Completion Actions
 
-export async function completeCompanyProfileAction(data: { companyName: string, gstin?: string, address: string, contactPerson: string }) {
+export async function completeCompanyProfileAction(data: { companyName: string, gstin?: string, address: string, contactPerson: string, email?: string }) {
     try {
         const cookiesList = await cookies()
         const sessionToken = cookiesList.get("session_token")?.value
@@ -978,6 +1075,7 @@ export async function completeCompanyProfileAction(data: { companyName: string, 
                 gstin: data.gstin,
                 address: data.address,
                 contactPerson: data.contactPerson,
+                email: data.email,
                 updatedAt: new Date()
             }).where(eq(companies.id, existingCompany.id))
         } else {
@@ -986,7 +1084,8 @@ export async function completeCompanyProfileAction(data: { companyName: string, 
                 companyName: data.companyName,
                 gstin: data.gstin,
                 address: data.address,
-                contactPerson: data.contactPerson
+                contactPerson: data.contactPerson,
+                email: data.email || ""
             })
         }
 
@@ -1000,7 +1099,7 @@ export async function completeCompanyProfileAction(data: { companyName: string, 
     }
 }
 
-export async function completeTechnicianProfileAction(data: { experience: number, primarySkill: string, skills: string, address: string }) {
+export async function completeTechnicianProfileAction(data: { name?: string, experience: number, primarySkill: string, skills: string, address: string }) {
     try {
         const cookiesList = await cookies()
         const sessionToken = cookiesList.get("session_token")?.value
@@ -1008,6 +1107,11 @@ export async function completeTechnicianProfileAction(data: { experience: number
 
         const session = JSON.parse(sessionToken)
         const userId = session.userId
+
+        // Update User Name
+        if (data.name) {
+            await db.update(users).set({ name: data.name }).where(eq(users.id, userId))
+        }
 
         // Parse skills from comma separated string
         const skillsArray = data.skills.split(",").map(s => s.trim()).filter(Boolean)

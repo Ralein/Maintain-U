@@ -1,7 +1,7 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { AlertCircle, Briefcase, Users, Calendar, DollarSign, Clock, CheckCircle, Bell, UserPlus } from "lucide-react"
+import { AlertCircle, Briefcase, Users, Calendar, DollarSign, Clock, CheckCircle, Bell, UserPlus, Map } from "lucide-react"
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -47,6 +47,7 @@ export default function AdminDashboard() {
     { icon: Briefcase, label: "View Requests", path: "/admin/requests", color: "text-purple-500" },
     { icon: Users, label: "Technicians", path: "/admin/technicians", color: "text-indigo-500" },
     { icon: UserPlus, label: "Onboarding", path: "/admin/onboarding", color: "text-blue-500" },
+    { icon: Map, label: "Live Map", path: "/admin/location", color: "text-orange-500" },
     { icon: Calendar, label: "Daily Select", path: "/admin/daily-select", color: "text-pink-500" },
     { icon: DollarSign, label: "Salary", path: "/admin/salary", color: "text-emerald-500" },
   ]

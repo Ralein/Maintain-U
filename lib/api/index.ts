@@ -24,11 +24,11 @@ export interface Request {
   companyId: string
   companyName: string
   type: string
-  priority: "Normal" | "Urgent" | "Emergency"
+  priority: "Normal" | "Urgent" | "Emergency" | string
   description: string
-  status: "New" | "Assigned" | "In Progress" | "Completed" | "Cancelled"
+  status: "New" | "Assigned" | "In Progress" | "Completed" | "Cancelled" | string
   date: string
-  createdAt: number
+  createdAt: number | Date
   [key: string]: any
 }
 
@@ -165,6 +165,11 @@ export const api = {
   async getRequestById(id: string) {
     const { getRequestByIdAction } = await import("@/lib/actions")
     return getRequestByIdAction(id)
+  },
+
+  async deleteRequest(id: string) {
+    const { deleteRequestAction } = await import("@/lib/actions")
+    return deleteRequestAction(id)
   },
 
   // Job / Technician
