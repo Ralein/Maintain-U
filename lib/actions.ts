@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users, requests, jobs, roleEnum, statusEnum, resetStatusEnum } from "@/db/schema"
+import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum } from "@/db/schema"
 import { eq, or, and } from "drizzle-orm"
 import { cookies } from "next/headers"
 
@@ -197,17 +197,48 @@ export async function registerCompanyAction(data: any) {
 }
 
 // Admin Actions
+
+export async function getRequestsAction() {
+    // Fetch all requests for admin
+    const allRequests = await db.select().from(requests).orderBy(requests.createdAt);
+    return { requests: allRequests }
+}
+
+export async function getCompanyRequestsAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { requests: [] }
+
+    const session = JSON.parse(sessionToken.value)
+
+    const compRequests = await db.select().from(requests)
+        .where(eq(requests.companyId, session.userId))
+        .orderBy(requests.createdAt);
+
+    return { requests: compRequests }
+}
+
 export async function getTechniciansAction() {
-    const techUsers = await db.select().from(users).where(eq(users.role, 'technician'));
-    // Transform to UI expected format
+    // Join users and technicians
+    const result = await db.select({
+        user: users,
+        tech: technicians
+    })
+        .from(users)
+        .leftJoin(technicians, eq(technicians.userId, users.id))
+        .where(eq(users.role, 'technician'));
+
     return {
-        technicians: techUsers.map(u => ({
-            id: u.id,
-            name: u.name || "Unknown",
-            skill: "General", // Placeholder
-            rating: 0,
-            status: u.status === 'active' ? 'Available' : u.status === 'pending' ? 'Pending' : u.status,
-            phone: u.phone
+        technicians: result.map(({ user, tech }) => ({
+            id: user.id, // Use user ID for admin actions usually
+            techId: tech?.id,
+            name: user.name || "Unknown",
+            skill: tech?.primarySkill || "General",
+            rating: tech?.rating || "0",
+            status: (tech?.status || user.status) === 'active' ? 'Available' : (tech?.status || user.status),
+            phone: user.phone,
+            experience: tech?.experience,
+            joinedAt: user.createdAt
         }))
     }
 }
@@ -418,6 +449,16 @@ export async function loginWithPasswordAction(phone: string, password: string, i
         // Success - set session
         (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: user.role, status: user.status }), { httpOnly: true, path: '/' });
 
+        // Check profile completion
+        if (!user.profileCompleted) {
+            return {
+                success: false,
+                error: 'profile_incomplete',
+                role: user.role,
+                message: "Please complete your profile configuration"
+            }
+        }
+
         return {
             success: true,
             role: user.role,
@@ -541,4 +582,489 @@ export async function completePasswordResetAction(phone: string, password: strin
 export async function getResetRequestsAction() {
     const resetRequests = await db.select().from(users).where(eq(users.resetStatus, 'requested'));
     return { requests: resetRequests }
+}
+
+// Service Request Actions
+export async function createRequestAction(data: any) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+
+    if (!sessionToken) return { success: false, message: "Not authenticated" }
+
+    const session = JSON.parse(sessionToken.value)
+
+    if (session.role !== 'company') {
+        return { success: false, message: "Only companies can create requests" }
+    }
+
+    // Get company details from user
+    const companyUser = await db.query.users.findFirst({
+        where: eq(users.id, session.userId)
+    })
+
+    if (!companyUser) return { success: false, message: "User not found" }
+
+    try {
+        const [newReq] = await db.insert(requests).values({
+            companyId: companyUser.id,
+            companyName: companyUser.name || "Unknown Company",
+            type: data.serviceType,
+            priority: data.priority,
+            description: data.description,
+            timeSlot: data.timeSlot,
+            date: data.date,
+            supervisor: data.supervisor,
+            supervisorPhone: data.supervisorPhone,
+            photos: data.photos || [],
+            status: "New"
+        }).returning();
+
+        return { success: true, id: newReq.id }
+    } catch (e) {
+        console.error("Create request error:", e)
+        return { success: false, message: "Failed to create request" }
+    }
+}
+
+// Technician Registration Action
+
+
+export async function registerTechnicianAction(data: any) {
+    const { phone, ...techData } = data;
+
+    // 1. Ensure User Exists (should have been created during OTP or checks)
+    let user = await db.query.users.findFirst({
+        where: eq(users.phone, phone)
+    })
+
+    if (!user) {
+        // Fallback: create user if not exists (edge case)
+        [user] = await db.insert(users).values({
+            phone,
+            role: 'technician',
+            status: 'pending',
+            name: techData.name
+        }).returning();
+    } else {
+        // Update name
+        await db.update(users).set({
+            name: techData.name,
+            role: 'technician' // Ensure role is set
+        }).where(eq(users.id, user.id));
+    }
+
+    try {
+        // 2. Create/Update Technician Profile
+        // Check if profile exists
+        const existingTech = await db.query.technicians.findFirst({
+            where: eq(technicians.userId, user.id)
+        })
+
+        if (existingTech) {
+            // Update
+            await db.update(technicians).set({
+                dob: techData.dob,
+                gender: techData.gender,
+                address: techData.address,
+                experience: parseInt(techData.experience),
+                primarySkill: techData.primarySkill,
+                skills: [techData.primarySkill], // Initialize with primary
+                dailyRate: parseInt(techData.dailyRate),
+                bankDetails: {
+                    bankName: techData.bankName,
+                    accountHolder: techData.accountHolder,
+                    accountNumber: techData.accountNumber,
+                    ifsc: techData.ifsc,
+                    upi: techData.upi
+                },
+                // documents would be handled here if we had them
+                updatedAt: new Date()
+            } as any).where(eq(technicians.id, existingTech.id));
+        } else {
+            // Insert
+            await db.insert(technicians).values({
+                userId: user.id,
+                dob: techData.dob,
+                gender: techData.gender,
+                address: techData.address,
+                experience: parseInt(techData.experience) || 0,
+                primarySkill: techData.primarySkill,
+                skills: [techData.primarySkill],
+                dailyRate: parseInt(techData.dailyRate) || 0,
+                bankDetails: {
+                    bankName: techData.bankName,
+                    accountHolder: techData.accountHolder,
+                    accountNumber: techData.accountNumber,
+                    ifsc: techData.ifsc,
+                    upi: techData.upi
+                },
+                documents: {}, // Empty for now
+                status: "Pending"
+            } as any);
+        }
+
+        // Update session to reflect pending status
+        (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: 'technician', status: 'pending' }), { httpOnly: true, path: '/' });
+
+        return { success: true }
+    } catch (e) {
+        console.error("Register technician error:", e)
+        return { success: false, message: "Registration failed" }
+    }
+}
+
+export async function getRequestByIdAction(id: string) {
+    // Find request
+    const request = await db.query.requests.findFirst({
+        where: eq(requests.id, id)
+    })
+    return { request }
+}
+
+export async function assignTeamAction(requestId: string, techIds: string[], leadId: string) {
+    if (!requestId || !techIds.length) {
+        return { success: false, message: "Invalid assignment data" }
+    }
+
+    try {
+        // 1. Update Request Status
+        await db.update(requests)
+            .set({ status: 'Assigned' })
+            .where(eq(requests.id, requestId));
+
+        // 2. Create Job Entries for each technician
+        // Check if jobs already exist for this request to prevent duplicates? 
+        // For simplicity, we assume fresh assignment or just insert.
+
+        const jobValues = techIds.map(techId => ({
+            requestId,
+            technicianId: techId, // This might need lookup if techId passed is user.id not technician.id
+            // Ideally UI passes technician.id. Let's assume it does.
+            status: 'Pending', // Tech needs to accept
+        }))
+
+        // Note: techIds from UI are likely userIds or technicianIds. 
+        // If they are userIds, we need to resolve to technicianIds?
+        // In getTechniciansAction we return { id: user.id, techId: tech.id }
+        // The UI uses `tech.id` which is user.id in the mapping: `id: user.id`.
+        // Wait, let's check getTechniciansAction mapping:
+        // id: user.id
+        // techId: tech.id
+        // The UI (AssignTeamPage) uses `tech.id` as the key.
+        // So `techIds` array contains USER IDs.
+        // BUT `jobs` table `technicianId` references `technicians.id`.
+        // So we need to resolve User IDs to Technician IDs.
+
+        const techs = await db.select().from(technicians)
+            .where(or(...techIds.map(uid => eq(technicians.userId, uid))));
+
+        const resolvedJobValues = techs.map(t => ({
+            requestId,
+            technicianId: t.id,
+            status: 'Pending'
+        }));
+
+        if (resolvedJobValues.length > 0) {
+            await db.insert(jobs).values(resolvedJobValues);
+        }
+
+        return { success: true }
+    } catch (e) {
+        console.error("Assign team error:", e)
+        return { success: false, message: "Failed to assign team" }
+    }
+}
+
+export async function getJobsAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { jobs: [] }
+
+    const session = JSON.parse(sessionToken.value)
+
+    // If technician, fetch their jobs
+    if (session.role === 'technician') {
+        const result = await db.select({
+            job: jobs,
+            req: requests
+        })
+            .from(jobs)
+            .innerJoin(requests, eq(jobs.requestId, requests.id))
+            .where(eq(jobs.technicianId, session.userId)) // Assuming userId in session maps to technicianId directly in jobs?
+        // Wait, jobs.technicianId stores TECHNICIAN table ID. session.userId matches USERS.id.
+        // We need to look up technician ID from user ID first.
+
+        const tech = await db.query.technicians.findFirst({
+            where: eq(technicians.userId, session.userId)
+        })
+
+        if (!tech) return { jobs: [] }
+
+        const techJobs = await db.select({
+            job: jobs,
+            req: requests
+        })
+            .from(jobs)
+            .innerJoin(requests, eq(jobs.requestId, requests.id))
+            .where(eq(jobs.technicianId, tech.id))
+            .orderBy(jobs.updatedAt);
+
+        return {
+            jobs: techJobs.map(({ job, req }) => ({
+                id: job.id,
+                requestId: req.id,
+                technicianId: job.technicianId,
+                company: req.companyName,
+                service: req.type,
+                status: job.status,
+                location: "Location Placeholder",
+                time: req.timeSlot,
+                date: req.date
+            }))
+        }
+    }
+
+    // If Admin, maybe fetch all? Or specific admin job view? 
+    // Usually admin views Requests, not individual technician jobs directly in this list.
+    return { jobs: [] }
+}
+
+export async function getJobByIdAction(id: string) {
+    const result = await db.select({
+        job: jobs,
+        req: requests
+    })
+        .from(jobs)
+        .innerJoin(requests, eq(jobs.requestId, requests.id))
+        .where(eq(jobs.id, id))
+        .limit(1);
+
+    if (result.length === 0) return { job: null }
+
+    const { job, req } = result[0];
+
+    return {
+        job: {
+            id: job.id,
+            requestId: req.id,
+            technicianId: job.technicianId,
+            company: req.companyName,
+            address: "Address Placeholder",
+            service: req.type,
+            description: req.description,
+            supervisor: req.supervisor,
+            supervisorPhone: req.supervisorPhone,
+            team: [],
+            status: job.status
+        }
+    }
+}
+
+// Daily Operations
+// Imports should be at top, but for now we rely on them being available or auto-imported by context if I moved them. 
+// Actually I need to add them to top. 
+
+export async function acceptJobAction(jobId: string) {
+    try {
+        await db.update(jobs)
+            .set({ status: 'Accepted', updatedAt: new Date() })
+            .where(eq(jobs.id, jobId));
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to accept job" }
+    }
+}
+
+export async function checkInAction(jobId: string, location: any) {
+    const job = await db.query.jobs.findFirst({ where: eq(jobs.id, jobId) })
+    if (!job) return { success: false, message: "Job not found" }
+
+    // Create attendance record
+    try {
+        await db.insert(attendance).values({
+            jobId,
+            technicianId: job.technicianId!,
+            date: new Date().toLocaleDateString("en-US"),
+            checkInTime: new Date(),
+            locationCheckIn: JSON.stringify(location),
+            status: 'present'
+        })
+
+        // Update Job status
+        await db.update(jobs)
+            .set({ status: 'In Progress', updatedAt: new Date() })
+            .where(eq(jobs.id, jobId));
+
+        return { success: true }
+    } catch (e) {
+        console.error("Check-in error:", e)
+        return { success: false, message: "Failed to check in" }
+    }
+}
+
+export async function postJobUpdateAction(jobId: string, message: string, photos: string[]) {
+    const job = await db.query.jobs.findFirst({ where: eq(jobs.id, jobId) })
+    if (!job) return { success: false }
+
+    try {
+        await db.insert(jobUpdates).values({
+            jobId,
+            technicianId: job.technicianId!,
+            message,
+            photos,
+        })
+        return { success: true }
+    } catch (e) {
+        return { success: false }
+    }
+}
+
+export async function completeJobAction(jobId: string, signature: string) {
+    try {
+        await db.update(jobs)
+            .set({
+                status: 'Completed',
+                signature,
+                completedAt: new Date(),
+                updatedAt: new Date()
+            })
+            .where(eq(jobs.id, jobId));
+
+        // Also ensure check-out if not done? 
+        // For simplicity, we assume check-out is separate or auto-done.
+        // Let's find open attendance for today and close it.
+        const today = new Date().toLocaleDateString("en-US")
+        const openAttendance = await db.query.attendance.findFirst({
+            where: and(
+                eq(attendance.jobId, jobId),
+                eq(attendance.date, today)
+            )
+        })
+
+        if (openAttendance && !openAttendance.checkOutTime) {
+            await db.update(attendance)
+                .set({ checkOutTime: new Date() })
+                .where(eq(attendance.id, openAttendance.id));
+        }
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to complete job" }
+    }
+}
+
+// Profile Completion Actions
+
+export async function completeCompanyProfileAction(data: { companyName: string, gstin?: string, address: string, contactPerson: string }) {
+    try {
+        const cookiesList = await cookies()
+        const sessionToken = cookiesList.get("session_token")?.value
+        if (!sessionToken) return { success: false, message: "Unauthorized" }
+
+        const session = JSON.parse(sessionToken)
+        const userId = session.userId
+
+        if (!data.gstin) {
+            return { success: false, message: "GSTIN is required" }
+        }
+
+        // Check if company record exists (upsert)
+        const existingCompany = await db.query.companies.findFirst({ where: eq(companies.userId, userId) })
+
+        if (existingCompany) {
+            await db.update(companies).set({
+                companyName: data.companyName,
+                gstin: data.gstin,
+                address: data.address,
+                contactPerson: data.contactPerson,
+                updatedAt: new Date()
+            }).where(eq(companies.id, existingCompany.id))
+        } else {
+            await db.insert(companies).values({
+                userId,
+                companyName: data.companyName,
+                gstin: data.gstin,
+                address: data.address,
+                contactPerson: data.contactPerson
+            })
+        }
+
+        // Update user profile status
+        await db.update(users).set({ profileCompleted: true }).where(eq(users.id, userId))
+
+        return { success: true }
+    } catch (e) {
+        console.error("Company profile error:", e)
+        return { success: false, message: "Failed to save profile" }
+    }
+}
+
+export async function completeTechnicianProfileAction(data: { experience: number, primarySkill: string, skills: string, address: string }) {
+    try {
+        const cookiesList = await cookies()
+        const sessionToken = cookiesList.get("session_token")?.value
+        if (!sessionToken) return { success: false, message: "Unauthorized" }
+
+        const session = JSON.parse(sessionToken)
+        const userId = session.userId
+
+        // Parse skills from comma separated string
+        const skillsArray = data.skills.split(",").map(s => s.trim()).filter(Boolean)
+        // Add primary skill if not in list
+        if (data.primarySkill && !skillsArray.includes(data.primarySkill)) {
+            skillsArray.unshift(data.primarySkill)
+        }
+
+        // Check if technician record exists (it might from registration/admin approval?) 
+        // Or we just insert/upsert.
+
+        const existingTech = await db.query.technicians.findFirst({ where: eq(technicians.userId, userId) })
+
+        if (existingTech) {
+            await db.update(technicians).set({
+                experience: data.experience,
+                primarySkill: data.primarySkill,
+                skills: skillsArray,
+                address: data.address
+            }).where(eq(technicians.id, existingTech.id))
+        } else {
+            await db.insert(technicians).values({
+                userId,
+                experience: data.experience,
+                primarySkill: data.primarySkill,
+                skills: skillsArray,
+                address: data.address
+            })
+        }
+
+        // Update user profile status
+        await db.update(users).set({ profileCompleted: true }).where(eq(users.id, userId))
+
+        return { success: true }
+    } catch (e) {
+        console.error("Technician profile error:", e)
+        return { success: false, message: "Failed to save profile" }
+    }
+}
+
+export async function deleteUserAction(userId: string) {
+    try {
+        const cookiesList = await cookies()
+        const sessionToken = cookiesList.get("session_token")?.value
+
+        if (!sessionToken) return { success: false, message: "Unauthorized" }
+
+        // Delete associated profiles first
+        await db.delete(companies).where(eq(companies.userId, userId))
+        await db.delete(technicians).where(eq(technicians.userId, userId))
+
+        // Delete user
+        await db.delete(users).where(eq(users.id, userId))
+
+        return { success: true }
+    } catch (e) {
+        console.error("Delete user error:", e)
+        return { success: false, message: "Failed to delete user" }
+    }
 }

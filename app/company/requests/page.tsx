@@ -1,48 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { BiSearch, BiFilter } from "react-icons/bi"
+import { BiSearch, BiFilter, BiPlus, BiLoaderAlt } from "react-icons/bi"
+import { Zap, Wrench, Thermometer, Settings, Droplet } from "lucide-react"
+import { api, Request } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function CompanyRequestsPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<"all" | "active" | "completed">("all")
+  const [requests, setRequests] = useState<Request[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const requests = [
-    {
-      id: "REQ-001",
-      type: "Electrical",
-      date: "Jan 12, 2025",
-      status: "In Progress",
-      priority: "Normal",
-    },
-    {
-      id: "REQ-002",
-      type: "Mechanical",
-      date: "Jan 11, 2025",
-      status: "Completed",
-      priority: "Urgent",
-    },
-    {
-      id: "REQ-003",
-      type: "HVAC",
-      date: "Jan 10, 2025",
-      status: "Active",
-      priority: "Normal",
-    },
-    {
-      id: "REQ-004",
-      type: "Assembly",
-      date: "Jan 09, 2025",
-      status: "Completed",
-      priority: "Normal",
-    },
-  ]
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const res = await api.getCompanyRequests()
+        if (res.requests) {
+          setRequests(res.requests as unknown as Request[])
+        }
+      } catch (error) {
+        toast.error("Failed to load requests")
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRequests()
+  }, [])
 
   const statusColors: Record<string, string> = {
     "In Progress": "bg-blue-500/10 text-blue-600 border-blue-500/20",
     Active: "bg-green-500/10 text-green-600 border-green-500/20",
     Completed: "bg-slate-500/10 text-slate-600 border-slate-500/20",
+    "New": "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    "Assigned": "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
   }
 
   const priorityColors: Record<string, string> = {
@@ -51,10 +45,21 @@ export default function CompanyRequestsPage() {
     Emergency: "text-red-600 dark:text-red-400 font-bold",
   }
 
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "Electrical": return <Zap className="w-6 h-6" />
+      case "Mechanical": return <Settings className="w-6 h-6" />
+      case "HVAC": return <Thermometer className="w-6 h-6" />
+      case "Plumbing": return <Droplet className="w-6 h-6" />
+      case "Assembly": return <Wrench className="w-6 h-6" />
+      default: return <Wrench className="w-6 h-6" />
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen pb-32">
       {/* Header */}
-      <header className="sticky top-0 z-20 px-6 py-4 bg-background/80 backdrop-blur-xl border-b border-border/50 flex items-center justify-between transition-all">
+      <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Requests</h1>
           <p className="text-xs text-muted-foreground font-medium">Manage maintenance</p>
@@ -99,45 +104,63 @@ export default function CompanyRequestsPage() {
         </div>
 
         {/* Requests List */}
-        <div className="space-y-3">
-          {requests
-            .filter((req) => {
-              if (activeTab === "completed") return req.status === "Completed"
-              if (activeTab === "active") return req.status !== "Completed"
-              return true
-            })
-            .map((req) => (
-              <div
-                key={req.id}
-                className="glass-card p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-primary/50"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                    req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
-                      req.type === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
-                        'bg-primary/10 text-primary'
-                    }`}>
-                    <span className="font-bold text-lg">{req.type.charAt(0)}</span>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <BiLoaderAlt className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
+            <p>No requests found</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {requests
+              .filter((req) => {
+                if (activeTab === "completed") return req.status === "Completed"
+                if (activeTab === "active") return req.status !== "Completed" && req.status !== "Cancelled"
+                return true
+              })
+              .map((req) => (
+                <div
+                  key={req.id}
+                  onClick={() => router.push(`/company/requests/${req.id}`)}
+                  className="glass-card p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-primary/50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                      req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                        req.type === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                          'bg-primary/10 text-primary'
+                      }`}>
+                      {getIcon(req.type)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{req.type}</p>
+                      <p className="text-xs text-muted-foreground font-mono font-medium">{req.id}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{req.type}</p>
-                    <p className="text-xs text-muted-foreground font-mono font-medium">{req.id}</p>
-                  </div>
-                </div>
 
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors[req.status] || 'bg-slate-100 text-slate-600'}`}>
-                    {req.status}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] ${priorityColors[req.priority]}`}>{req.priority}</span>
-                    <span className="text-[10px] text-muted-foreground">• {req.date}</span>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${statusColors[req.status] || 'bg-slate-100 text-slate-600'}`}>
+                      {req.status}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] ${priorityColors[req.priority]}`}>{req.priority}</span>
+                      <span className="text-[10px] text-muted-foreground">• {req.date}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-        </div>
+              ))}
+          </div>
+        )}
       </main>
+
+      {/* FAB */}
+      <button
+        onClick={() => router.push("/company/requests/new")}
+        className="fixed bottom-24 right-5 w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center z-50">
+        <BiPlus className="w-6 h-6" />
+      </button>
 
       <BottomNav active="requests" role="company" />
     </div>

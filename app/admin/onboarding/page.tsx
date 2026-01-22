@@ -3,9 +3,20 @@
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Search, User, Check, X, ShieldAlert, RotateCcw, Building2, Wrench, Filter } from "lucide-react"
+import { Search, User, Check, X, ShieldAlert, RotateCcw, Building2, Wrench, Filter, Trash2 } from "lucide-react"
 import { api, User as UserType } from "@/lib/api"
+import { deleteUserAction } from "@/lib/actions"
 import { toast } from "sonner"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<"all" | "pending" | "active" | "banned" | "rejected" | "reset">("pending")
@@ -27,6 +38,22 @@ export default function UserManagementPage() {
         reset: []
     })
     const [search, setSearch] = useState("")
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [userToDelete, setUserToDelete] = useState<string | null>(null)
+
+    const handleDeleteConfirm = async () => {
+        if (!userToDelete) return
+        try {
+            await deleteUserAction(userToDelete)
+            toast.success("User deleted successfully")
+            fetchUsers()
+        } catch {
+            toast.error("Failed to delete user")
+        } finally {
+            setDeleteDialogOpen(false)
+            setUserToDelete(null)
+        }
+    }
 
     const fetchUsers = async () => {
         try {
@@ -294,6 +321,18 @@ export default function UserManagementPage() {
                                             Unban
                                         </button>
                                     )}
+
+                                    {/* Delete Button (Available for all non-active or explicit cleanup) */}
+                                    <button
+                                        onClick={() => {
+                                            setUserToDelete(user.id)
+                                            setDeleteDialogOpen(true)
+                                        }}
+                                        className="w-10 flex items-center justify-center rounded-xl bg-muted/50 text-muted-foreground hover:bg-red-500/10 hover:text-red-600 transition-colors"
+                                        title="Delete User"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
                         ))
@@ -301,7 +340,24 @@ export default function UserManagementPage() {
                 </div>
             </main>
 
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the user account and remove their data from our servers.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+                            Delete User
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <BottomNav active="onboarding" role="admin" />
-        </div>
+        </div >
     )
 }

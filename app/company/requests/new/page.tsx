@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Zap, Settings, Wrench, Thermometer, Droplet, X, Loader2, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react"
 
 export default function NewRequestPage() {
   const router = useRouter()
@@ -48,217 +48,265 @@ export default function NewRequestPage() {
     }
   }
 
+  const serviceIcons: Record<string, React.ReactNode> = {
+    Electrical: <Zap className="w-6 h-6" />,
+    Mechanical: <Settings className="w-6 h-6" />,
+    Assembly: <Wrench className="w-6 h-6" />,
+    HVAC: <Thermometer className="w-6 h-6" />,
+    Plumbing: <Droplet className="w-6 h-6" />,
+  }
+
   return (
-    <div className="min-h-screen px-6 pt-6 pb-20">
+    <div className="min-h-screen pb-32 bg-background text-foreground">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-white">New Request</h1>
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-300">
-          ✕
-        </button>
-      </div>
-
-      {/* Progress Indicator */}
-      <div className="flex gap-2 mb-8">
-        {[1, 2, 3, 4].map((s) => (
-          <div
-            key={s}
-            className={`flex-1 h-1 rounded-full transition-all ${s <= step ? "bg-blue-500" : "bg-slate-700"}`}
-          />
-        ))}
-      </div>
-
-      {/* Step 1: Service Type */}
-      {step === 1 && (
+      <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between transition-all mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white mb-2">Select Service Type</h2>
-          <p className="text-slate-400 text-sm mb-6">What maintenance do you need?</p>
+          <h1 className="text-xl font-bold tracking-tight">New Request</h1>
+          <p className="text-xs text-muted-foreground font-medium">Create maintenance ticket</p>
+        </div>
+        <button
+          onClick={() => router.back()}
+          className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </header>
 
-          <div className="space-y-3 mb-8">
-            {[
-              { id: "Electrical", label: "Electrical", icon: "⚡" },
-              { id: "Mechanical", label: "Mechanical", icon: "⚙️" },
-              { id: "Assembly", label: "Assembly", icon: "🔧" },
-              { id: "HVAC", label: "HVAC", icon: "🌡️" },
-              { id: "Plumbing", label: "Plumbing", icon: "🔩" },
-            ].map((service) => (
-              <button
-                key={service.id}
-                onClick={() => handleServiceSelect(service.id)}
-                className={`backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5 w-full flex items-center gap-4 text-left transition-all ${formData.serviceType === service.id ? "bg-blue-500/30 border-blue-400/50" : "hover:bg-white/15"
-                  }`}
-              >
-                <span className="text-3xl">{service.icon}</span>
-                <span className="font-semibold text-white">{service.label}</span>
-              </button>
-            ))}
-          </div>
+      <main className="px-6">
+        {/* Progress Indicator */}
+        <div className="flex gap-2 mb-8">
+          {[1, 2, 3, 4].map((s) => (
+            <div
+              key={s}
+              className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? "bg-primary shadow-sm shadow-primary/30" : "bg-muted"}`}
+            />
+          ))}
+        </div>
 
-          {/* Priority Selector */}
-          <div className="mb-8">
-            <label className="text-sm font-semibold text-white mb-3 block">Priority Level</label>
-            <div className="flex gap-3">
-              {["Normal", "Urgent", "Emergency"].map((priority) => (
+        {/* Step 1: Service Type */}
+        {step === 1 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-lg font-bold mb-1">Select Service Type</h2>
+            <p className="text-muted-foreground text-sm mb-6">What maintenance do you need?</p>
+
+            <div className="space-y-3 mb-8">
+              {[
+                { id: "Electrical", label: "Electrical" },
+                { id: "Mechanical", label: "Mechanical" },
+                { id: "Assembly", label: "Assembly" },
+                { id: "HVAC", label: "HVAC" },
+                { id: "Plumbing", label: "Plumbing" },
+              ].map((service) => (
                 <button
-                  key={priority}
-                  onClick={() => setFormData({ ...formData, priority })}
-                  className={`flex-1 py-3 rounded-lg font-semibold transition-all ${formData.priority === priority
-                      ? priority === "Normal"
-                        ? "backdrop-blur-md bg-green-500/30 border border-green-400/50 text-green-300"
-                        : priority === "Urgent"
-                          ? "backdrop-blur-md bg-yellow-500/30 border border-yellow-400/50 text-yellow-300"
-                          : "backdrop-blur-md bg-red-500/30 border border-red-400/50 text-red-300"
-                      : "backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 text-slate-300"
+                  key={service.id}
+                  type="button"
+                  onClick={() => handleServiceSelect(service.id)}
+                  className={`glass-card p-4 w-full flex items-center gap-4 text-left transition-all group ${formData.serviceType === service.id
+                    ? "ring-2 ring-primary border-primary/50 bg-primary/5"
+                    : "hover:border-primary/50"
                     }`}
                 >
-                  {priority}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${formData.serviceType === service.id
+                    ? "bg-primary text-white"
+                    : "bg-muted text-muted-foreground group-hover:text-primary"
+                    }`}>
+                    {serviceIcons[service.id]}
+                  </div>
+                  <span className="font-semibold">{service.label}</span>
+                  {formData.serviceType === service.id && (
+                    <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                  )}
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Step 2: Description & Photos */}
-      {step === 2 && (
-        <div>
-          <h2 className="text-xl font-bold text-white mb-2">Describe the Issue</h2>
-          <p className="text-slate-400 text-sm mb-6">Provide details about what needs maintenance</p>
-
-          <textarea
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Describe the maintenance issue in detail (min 50 characters)..."
-            className="backdrop-blur-sm bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-blue-400/50 focus:bg-white/10 transition-all w-full h-32 resize-none mb-6"
-          />
-
-          <div className="mb-8">
-            <label className="text-sm font-semibold text-white mb-3 block">Add Photos (Max 5)</label>
-            <button className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl w-full py-8 flex flex-col items-center justify-center gap-3 hover:bg-white/15 transition-colors">
-              <span className="text-4xl">📸</span>
-              <span className="text-sm text-slate-400">Tap to add photos</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Schedule */}
-      {step === 3 && (
-        <div>
-          <h2 className="text-xl font-bold text-white mb-2">Schedule</h2>
-          <p className="text-slate-400 text-sm mb-6">When do you need the service?</p>
-
-          <div className="space-y-4 mb-8">
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">Preferred Date</label>
-              <input
-                type="date"
-                className="backdrop-blur-sm bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white w-full"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-white mb-3 block">Time Slot</label>
-              <div className="grid grid-cols-2 gap-3">
-                {["Morning", "Afternoon", "Evening", "Flexible"].map((slot) => (
+            {/* Priority Selector */}
+            <div className="mb-8">
+              <label className="text-sm font-semibold mb-3 block">Priority Level</label>
+              <div className="flex gap-2 p-1 bg-muted/50 rounded-xl border border-border">
+                {["Normal", "Urgent", "Emergency"].map((priority) => (
                   <button
-                    key={slot}
-                    onClick={() => setFormData({ ...formData, timeSlot: slot })}
-                    className={`py-3 rounded-lg font-semibold transition-all ${formData.timeSlot === slot
-                        ? "backdrop-blur-md bg-blue-500/30 border border-blue-400/50 text-blue-300"
-                        : "backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/15 text-slate-300"
+                    key={priority}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, priority })}
+                    className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${formData.priority === priority
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border"
+                      : "text-muted-foreground hover:text-foreground"
+                      } ${formData.priority === priority && priority === "Urgent" ? "text-orange-600 dark:text-orange-400" : ""
+                      } ${formData.priority === priority && priority === "Emergency" ? "text-red-600 dark:text-red-400" : ""
                       }`}
                   >
-                    {slot}
+                    {priority}
                   </button>
                 ))}
               </div>
             </div>
-
-            <div>
-              <label className="text-sm font-semibold text-white mb-2 block">Site Supervisor Name</label>
-              <input
-                type="text"
-                placeholder="Full name"
-                className="backdrop-blur-sm bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-blue-400/50 focus:bg-white/10 transition-all w-full mb-3"
-                value={formData.supervisor}
-                onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
-              />
-              <input
-                type="tel"
-                placeholder="+91 Phone number"
-                className="backdrop-blur-sm bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-blue-400/50 focus:bg-white/10 transition-all w-full"
-                value={formData.supervisorPhone}
-                onChange={(e) => setFormData({ ...formData, supervisorPhone: e.target.value })}
-              />
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Step 4: Review */}
-      {step === 4 && (
-        <div>
-          <h2 className="text-xl font-bold text-white mb-2">Review Your Request</h2>
-          <p className="text-slate-400 text-sm mb-6">Confirm details before submission</p>
+        {/* Step 2: Description & Photos */}
+        {step === 2 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-lg font-bold mb-1">Describe the Issue</h2>
+            <p className="text-muted-foreground text-sm mb-6">Provide details about what needs maintenance</p>
 
-          <div className="space-y-4 mb-8">
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5">
-              <p className="text-xs text-slate-400 mb-1">Service Type</p>
-              <p className="text-lg font-semibold text-white capitalize">{formData.serviceType}</p>
-            </div>
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5">
-              <p className="text-xs text-slate-400 mb-1">Priority</p>
-              <p className="text-lg font-semibold text-white">{formData.priority}</p>
-            </div>
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5">
-              <p className="text-xs text-slate-400 mb-1">Description</p>
-              <p className="text-white">{formData.description || "No description added"}</p>
-            </div>
-            <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl p-5">
-              <p className="text-xs text-slate-400 mb-1">Schedule</p>
-              <p className="text-white">
-                {formData.date && formData.timeSlot ? `${formData.date} - ${formData.timeSlot}` : "Not set"}
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe the maintenance issue in detail (min 50 characters)..."
+              className="w-full h-40 p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none mb-6"
+            />
+
+            <div className="mb-8">
+              <label className="text-sm font-semibold mb-3 block">Add Photo URLs</label>
+              <textarea
+                placeholder="Enter photo URLs (comma separated)..."
+                className="w-full h-24 p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none mb-2"
+                onChange={(e) => setFormData({ ...formData, photos: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+              />
+              <p className="text-xs text-muted-foreground">
+                * Temporary: Enter direct image links (e.g. https://example.com/photo.jpg)
               </p>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Navigation Buttons */}
-      <div className="flex gap-3 fixed bottom-6 left-6 right-6">
-        <button
-          onClick={handlePrev}
-          disabled={step === 1}
-          className="backdrop-blur-sm bg-white/5 border border-white/20 text-white font-semibold py-3 px-6 rounded-xl hover:bg-white/10 hover:border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Back
-        </button>
-        {step < 4 ? (
-          <button
-            onClick={handleNext}
-            disabled={
-              (step === 1 && !formData.serviceType) ||
-              (step === 2 && formData.description.length < 50) ||
-              (step === 3 && (!formData.date || !formData.timeSlot))
-            }
-            className="backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading}
-            className="backdrop-blur-sm bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 flex-1 flex items-center justify-center gap-2"
-          >
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin text-white" />}
-            {isLoading ? "Submitting..." : "Submit Request"}
-          </button>
         )}
-      </div>
+
+        {/* Step 3: Schedule */}
+        {step === 3 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-lg font-bold mb-1">Schedule</h2>
+            <p className="text-muted-foreground text-sm mb-6">When do you need the service?</p>
+
+            <div className="space-y-6 mb-8">
+              <div>
+                <label className="text-sm font-semibold mb-2 block">Preferred Date</label>
+                <input
+                  type="date"
+                  className="w-full p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold mb-3 block">Time Slot</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {["Morning", "Afternoon", "Evening", "Flexible"].map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, timeSlot: slot })}
+                      className={`py-3 px-4 rounded-xl border font-semibold text-sm transition-all ${formData.timeSlot === slot
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "bg-card border-border hover:border-primary/50 text-muted-foreground"
+                        }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold mb-2 block">Site Supervisor</label>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    className="w-full p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    value={formData.supervisor}
+                    onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
+                  />
+                  <input
+                    type="tel"
+                    placeholder="+91 Phone number"
+                    className="w-full p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    value={formData.supervisorPhone}
+                    onChange={(e) => setFormData({ ...formData, supervisorPhone: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Review */}
+        {step === 4 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-lg font-bold mb-1">Review Request</h2>
+            <p className="text-muted-foreground text-sm mb-6">Confirm details before submission</p>
+
+            <div className="space-y-4 mb-8">
+              <div className="glass-card p-5 rounded-2xl">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Service Type</p>
+                <div className="flex items-center gap-2">
+                  <div className="text-primary">{serviceIcons[formData.serviceType]}</div>
+                  <p className="text-lg font-semibold capitalize">{formData.serviceType}</p>
+                </div>
+              </div>
+              <div className="glass-card p-5 rounded-2xl">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Priority</p>
+                <p className={`text-lg font-semibold ${formData.priority === 'Urgent' ? 'text-orange-600' :
+                    formData.priority === 'Emergency' ? 'text-red-600' : ''
+                  }`}>{formData.priority}</p>
+              </div>
+              <div className="glass-card p-5 rounded-2xl">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Description</p>
+                <p className="text-sm leading-relaxed">{formData.description || "No description added"}</p>
+              </div>
+              <div className="glass-card p-5 rounded-2xl">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Schedule</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{formData.date || "Date not set"}</p>
+                    <p className="text-sm text-muted-foreground">{formData.timeSlot}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formData.supervisor || "No supervisor"}</p>
+                    <p className="text-sm text-muted-foreground">{formData.supervisorPhone}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex gap-3 mt-8">
+          <button
+            onClick={handlePrev}
+            disabled={step === 1}
+            className="flex-1 py-4 px-6 rounded-xl border border-border font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
+
+          {step < 4 ? (
+            <button
+              onClick={handleNext}
+              disabled={
+                (step === 1 && !formData.serviceType) ||
+                (step === 2 && formData.description.length < 50) ||
+                (step === 3 && (!formData.date || !formData.timeSlot))
+              }
+              className="flex-[2] py-4 px-6 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="flex-[2] py-4 px-6 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/25 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+              {isLoading ? "Submitting..." : "Submit Request"}
+            </button>
+          )}
+        </div>
+      </main>
     </div>
   )
 }

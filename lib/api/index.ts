@@ -35,7 +35,7 @@ export interface Request {
 export interface Job {
   id: string
   requestId: string
-  technicianId: string
+  technicianId: string | null
   status: "Pending" | "Accepted" | "In Progress" | "Completed"
   [key: string]: any
 }
@@ -153,165 +153,68 @@ export const api = {
   },
 
   async getCompanyRequests(filters?: any) {
-    await delay(DELAY_MS)
-    const allRequests = DB.get("requests")
-    // Filter logic could go here
-    return { requests: allRequests }
+    const { getCompanyRequestsAction } = await import("@/lib/actions")
+    return getCompanyRequestsAction()
   },
 
   async createRequest(data: any) {
-    await delay(DELAY_MS)
-    const newRequest = {
-      id: `REQ-${Math.floor(Math.random() * 10000)}`,
-      status: "New",
-      date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      createdAt: Date.now(),
-      ...data
-    }
-    DB.add("requests", newRequest)
-    return { success: true, id: newRequest.id }
+    const { createRequestAction } = await import("@/lib/actions")
+    return createRequestAction(data)
   },
 
   async getRequestById(id: string) {
-    await delay(DELAY_MS)
-    const requests = DB.get("requests")
-    const req = requests.find((r: any) => r.id === id)
-    return { request: req }
+    const { getRequestByIdAction } = await import("@/lib/actions")
+    return getRequestByIdAction(id)
   },
 
   // Job / Technician
   async registerTechnician(data: any) {
-    await delay(DELAY_MS)
-    const user = { ...data, role: "technician", status: "pending", id: `TECH-${Date.now()}` }
-    if (typeof window !== "undefined") {
-      localStorage.setItem("currentUser", JSON.stringify(user))
-      DB.add("technicians", user)
-    }
-    return { success: true, user }
+    const { registerTechnicianAction } = await import("@/lib/actions")
+    return registerTechnicianAction(data)
   },
 
   async getJobs(filters?: any) {
-    await delay(DELAY_MS)
-    const requests = DB.get("requests")
-    // Map assigned/active requests to jobs
-    const dynamicJobs = requests
-      .filter((r: any) => r.status !== 'New' && r.status !== 'Cancelled')
-      .map((r: any) => ({
-        id: r.id,
-        requestId: r.id,
-        technicianId: "TECH-MOCK-001", // Mock association
-        company: r.companyName || r.companyId,
-        service: r.type,
-        status: r.status === 'Assigned' ? 'Pending' : r.status, // Map Request Status to Job Status
-        location: "Mock Location", // We don't have location on request yet
-        time: r.timeSlot || "09:00 AM",
-        date: r.date
-      }))
-
-    const mockJobs = [
-      {
-        id: "JOB-001",
-        requestId: "REQ-MOCK-001",
-        technicianId: "TECH-MOCK-001",
-        company: "ABC Industries",
-        service: "Electrical",
-        status: "Pending" as const,
-        location: "Industrial Area, Phase 1",
-        time: "09:00 AM",
-        date: "Today"
-      }
-    ]
-
-    return {
-      jobs: [...dynamicJobs, ...mockJobs]
-    }
+    const { getJobsAction } = await import("@/lib/actions")
+    return getJobsAction()
   },
 
   async getJobById(id: string) {
-    await delay(DELAY_MS)
-
-    // Try to find in dynamic requests first
-    const requests = DB.get("requests")
-    const req = requests.find((r: any) => r.id === id)
-
-    if (req) {
-      return {
-        job: {
-          id: req.id,
-          requestId: req.id,
-          technicianId: "TECH-MOCK-001",
-          company: req.companyName || req.companyId,
-          address: "Mock Address",
-          service: req.type,
-          description: req.description,
-          supervisor: req.supervisor || "N/A",
-          supervisorPhone: req.supervisorPhone || "N/A",
-          team: [
-            { name: "Raj Kumar", role: "Lead", photo: "" }
-          ],
-          status: (req.status === 'Assigned' ? 'Pending' : req.status) as any
-        }
-      }
-    }
-
-    // Mock details fallback
-    return {
-      job: {
-        id,
-        requestId: "REQ-MOCK-001",
-        technicianId: "TECH-MOCK-001",
-        company: "ABC Industries",
-        address: "Plot 45, Industrial Area, Phase 1",
-        service: "Electrical",
-        description: "Main circuit breaker tripping repeatedly. Urgent fix needed.",
-        supervisor: "Mr. Sharma",
-        supervisorPhone: "9876543200",
-        team: [
-          { name: "Raj Kumar", role: "Lead", photo: "" },
-          { name: "Amit Singh", role: "Member", photo: "" }
-        ],
-        status: "In Progress" as "In Progress" | "Pending" | "Accepted" | "Completed"
-      }
-    }
+    const { getJobByIdAction } = await import("@/lib/actions")
+    return getJobByIdAction(id)
   },
 
   async acceptJob(jobId: string) {
-    await delay(DELAY_MS)
-    return { success: true }
+    const { acceptJobAction } = await import("@/lib/actions")
+    return acceptJobAction(jobId)
   },
 
   async checkIn(jobId: string, location: any) {
-    await delay(DELAY_MS)
-    return { success: true }
+    const { checkInAction } = await import("@/lib/actions")
+    return checkInAction(jobId, location)
   },
 
-  async updateJobStatus(jobId: string, status: string, notes?: string) {
-    await delay(DELAY_MS)
-    return { success: true }
+  async updateJobStatus(jobId: string, status: string, notes?: string, photos?: string[]) {
+    // We treating 'updateJobStatus' as posting an update message
+    // If status change is needed, it's usually automatic via check-in/complete
+    // But let's assume this is for 'Job Updates' (notes/photos)
+    const { postJobUpdateAction } = await import("@/lib/actions")
+    return postJobUpdateAction(jobId, notes || "Status update", photos || [])
   },
 
   async completeJob(jobId: string, signature: string) {
-    await delay(DELAY_MS)
-    return { success: true }
+    const { completeJobAction } = await import("@/lib/actions")
+    return completeJobAction(jobId, signature)
   },
 
   // Admin
   async getRequests(filters?: any) {
-    await delay(DELAY_MS)
-    const requests = DB.get("requests")
-    return { requests }
+    const { getRequestsAction } = await import("@/lib/actions")
+    return getRequestsAction()
   },
 
   async assignTeam(jobId: string, techIds: string[], leadId: string) {
-    await delay(DELAY_MS)
-    const requests = DB.get("requests")
-    // Find request and simple update status
-    // In real app, we would create a Job entry
-    const reqIndex = requests.findIndex((r: any) => r.id === jobId)
-    if (reqIndex >= 0) {
-      DB.update("requests", jobId, { status: "Assigned" })
-    }
-    return { success: true }
+    const { assignTeamAction } = await import("@/lib/actions")
+    return assignTeamAction(jobId, techIds, leadId)
   },
 
   async getTechnicians(filters?: string) {

@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useRef, useState, use } from "react"
+import { useRef, useState, use, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { api } from "@/lib/api"
+import { api, Job } from "@/lib/api"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 
@@ -12,6 +12,7 @@ export default function SignaturePage({ params }: { params: Promise<{ id: string
   const { id } = use(params)
   const router = useRouter()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [job, setJob] = useState<Job | null>(null)
   const [supervisorName, setSupervisorName] = useState("")
   const [supervisorDesignation, setSupervisorDesignation] = useState("")
   const [isDrawing, setIsDrawing] = useState(false)

@@ -18,7 +18,7 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
       try {
         const res = await api.getJobById(id)
         if (res.job) {
-          setJob(res.job)
+          setJob(res.job as Job)
         }
       } catch (error) {
         toast.error("Failed to load job")
@@ -32,9 +32,7 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
   const handleAccept = async () => {
     setActionLoading(true)
     try {
-      // Simply update status locally for mock
-      // In real API, api.acceptJob(id) would be called
-      await api.updateJobStatus(id, "Accepted")
+      await api.acceptJob(id)
       setJob(prev => prev ? ({ ...prev, status: "Accepted" }) : null)
       toast.success("Job accepted")
     } catch (e) {

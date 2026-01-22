@@ -141,6 +141,13 @@ function LoginContent() {
         } else if (res.error === 'no_password') {
           toast.info("Please set up your password")
           router.push("/setup-password")
+        } else if (res.error === 'profile_incomplete') {
+          toast.info("Please complete your profile setup")
+          if (res.role === 'company') {
+            router.push("/setup/company")
+          } else if (res.role === 'technician') {
+            router.push("/setup/technician")
+          }
         } else if (res.error === 'banned') {
           toast.error("Account suspended. Access denied.")
         } else if (res.error === 'rejected') {

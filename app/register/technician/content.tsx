@@ -151,26 +151,35 @@ export default function TechnicianRegisterContent() {
 
       {step === 3 && (
         <div className="space-y-4 mb-8 animate-in slide-in-from-right-4 fade-in duration-300">
-          <h2 className="text-lg font-bold text-foreground">Documents</h2>
-          <div className="space-y-3">
-            <button className="w-full py-6 px-4 rounded-xl border border-dashed border-border hover:bg-muted/50 hover:border-primary/50 transition-all flex flex-col items-center gap-2 group">
-              <span className="p-3 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-                <svg className="w-6 h-6 text-muted-foreground group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </span>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Upload Aadhar (Front)</span>
-            </button>
-            <button className="w-full py-6 px-4 rounded-xl border border-dashed border-border hover:bg-muted/50 hover:border-primary/50 transition-all flex flex-col items-center gap-2 group">
-              <span className="p-3 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-                <svg className="w-6 h-6 text-muted-foreground group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </span>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Upload Aadhar (Back)</span>
-            </button>
-            <button className="w-full py-6 px-4 rounded-xl border border-dashed border-border hover:bg-muted/50 hover:border-primary/50 transition-all flex flex-col items-center gap-2 group">
-              <span className="p-3 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-                <svg className="w-6 h-6 text-muted-foreground group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </span>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-primary">Upload PAN</span>
-            </button>
+          <h2 className="text-lg font-bold text-foreground">Documents (URLs)</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Aadhar Front URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                className="w-full px-4 py-3.5 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                onChange={(e) => setFormData(prev => ({ ...prev, documents: { ...(prev as any).documents, aadharFront: e.target.value } }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">Aadhar Back URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                className="w-full px-4 py-3.5 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                onChange={(e) => setFormData(prev => ({ ...prev, documents: { ...(prev as any).documents, aadharBack: e.target.value } }))}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground mb-1 block">PAN Card URL</label>
+              <input
+                type="text"
+                placeholder="https://..."
+                className="w-full px-4 py-3.5 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                onChange={(e) => setFormData(prev => ({ ...prev, documents: { ...(prev as any).documents, pan: e.target.value } }))}
+              />
+            </div>
           </div>
         </div>
       )}
