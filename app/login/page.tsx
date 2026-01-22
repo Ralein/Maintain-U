@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useRef, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2, Clock, ShieldCheck, Home, Lock, Eye, EyeOff, Phone, ArrowRight, CheckCircle2, Building2, Wrench, LayoutDashboard } from "lucide-react"
 import { api } from "@/lib/api"
 import { requestPasswordResetAction, checkResetStatusAction, completePasswordResetAction } from "@/lib/actions"
@@ -9,9 +9,13 @@ import { toast } from "sonner"
 
 type Step = "login" | "verify-required" | "waiting" | "approved"
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
-  const [phone, setPhone] = useState("")
+  const searchParams = useSearchParams()
+  // Auto-fill phone from URL if present
+  const initialPhone = searchParams?.get("phone") || ""
+
+  const [phone, setPhone] = useState(initialPhone)
   const [role, setRole] = useState<"company" | "technician" | "admin">("company")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -71,7 +75,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (step !== "approved") return
 
-    const mockOtp = ["4", "7", "2", "8", "1", "5"]
+    // Generate random secure code
+    const generatedOtp = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10).toString())
     let index = 0
 
     const animateOtp = () => {
@@ -79,7 +84,7 @@ export default function LoginPage() {
         setAnimatingIndex(index)
         setOtpDigits(prev => {
           const newDigits = [...prev]
-          newDigits[index] = mockOtp[index]
+          newDigits[index] = generatedOtp[index]
           return newDigits
         })
         index++
@@ -274,21 +279,19 @@ export default function LoginPage() {
             </div>
 
             {/* OTP Animation Boxes */}
-            <div className="flex justify-center gap-2 my-8">
+            <div className="flex justify-center gap-3 my-8 min-h-[4rem]">
               {otpDigits.map((digit, index) => (
-                <div
-                  key={index}
-                  className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-200 ${index === animatingIndex
-                    ? "border-primary bg-primary/10 scale-110"
-                    : digit
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-border bg-card"
-                    }`}
-                >
-                  {digit && (
-                    <span className="animate-in zoom-in duration-200">{digit}</span>
-                  )}
-                </div>
+                digit ? (
+                  <div
+                    key={index}
+                    className={`w-12 h-16 rounded-2xl border flex items-center justify-center text-2xl font-bold transition-all duration-300 ${index === animatingIndex
+                      ? "border-primary bg-primary/10 text-primary scale-110 ring-4 ring-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.3)]"
+                      : "border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                      }`}
+                  >
+                    <span className="animate-in zoom-in duration-200 slide-in-from-bottom-2">{digit}</span>
+                  </div>
+                ) : null
               ))}
             </div>
 
@@ -424,8 +427,8 @@ export default function LoginPage() {
                   key={r}
                   onClick={() => setRole(r)}
                   className={`flex-1 py-1.5 text-xs font-bold rounded-lg capitalize transition-all ${role === r
-                      ? "bg-white dark:bg-card shadow-sm text-primary"
-                      : "text-muted-foreground hover:text-foreground"
+                    ? "bg-white dark:bg-card shadow-sm text-primary"
+                    : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {r}
@@ -524,5 +527,17 @@ export default function LoginPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }

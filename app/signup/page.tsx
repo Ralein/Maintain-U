@@ -65,7 +65,8 @@ function SignupContent() {
   useEffect(() => {
     if (step !== "approved") return
 
-    const mockOtp = ["4", "7", "2", "8", "1", "5"]
+    // Generate random secure code
+    const generatedOtp = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10).toString())
     let index = 0
 
     const animateOtp = () => {
@@ -73,7 +74,7 @@ function SignupContent() {
         setAnimatingIndex(index)
         setOtpDigits(prev => {
           const newDigits = [...prev]
-          newDigits[index] = mockOtp[index]
+          newDigits[index] = generatedOtp[index]
           return newDigits
         })
         index++
@@ -108,7 +109,7 @@ function SignupContent() {
         } else if (status.status === 'active') {
           if (status.hasPassword) {
             toast.info("Account exists. Please login.")
-            router.push("/login")
+            router.push(`/login?phone=${phone}`)
           } else {
             // Active but no password -> Show approved animation
             setStep("approved")
@@ -139,7 +140,7 @@ function SignupContent() {
         if (res.error === 'pending') setStep("waiting")
         else {
           toast.info("Account already active. Please login.")
-          router.push("/login")
+          router.push(`/login?phone=${phone}`)
         }
       } else {
         // If "pending" comes back as error key
@@ -203,21 +204,19 @@ function SignupContent() {
             </div>
 
             {/* OTP Animation Boxes */}
-            <div className="flex justify-center gap-2 my-8">
+            <div className="flex justify-center gap-3 my-8 min-h-[4rem]">
               {otpDigits.map((digit, index) => (
-                <div
-                  key={index}
-                  className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all duration-200 ${index === animatingIndex
-                    ? "border-primary bg-primary/10 scale-110"
-                    : digit
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-border bg-card"
-                    }`}
-                >
-                  {digit && (
-                    <span className="animate-in zoom-in duration-200">{digit}</span>
-                  )}
-                </div>
+                digit ? (
+                  <div
+                    key={index}
+                    className={`w-12 h-16 rounded-2xl border flex items-center justify-center text-2xl font-bold transition-all duration-300 ${index === animatingIndex
+                      ? "border-primary bg-primary/10 text-primary scale-110 ring-4 ring-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.3)]"
+                      : "border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
+                      }`}
+                  >
+                    <span className="animate-in zoom-in duration-200 slide-in-from-bottom-2">{digit}</span>
+                  </div>
+                ) : null
               ))}
             </div>
           </div>

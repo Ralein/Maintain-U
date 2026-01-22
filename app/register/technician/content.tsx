@@ -10,7 +10,7 @@ import { toast } from "sonner"
 export default function TechnicianRegisterContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const phone = searchParams.get("phone")
+  const phone = searchParams?.get("phone") ?? ""
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
 

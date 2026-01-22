@@ -4,7 +4,11 @@ import { Outfit } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap"
+})
 
 export const metadata: Metadata = {
   title: "MaintainU - Industrial Maintenance Platform",
