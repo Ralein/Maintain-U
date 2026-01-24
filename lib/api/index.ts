@@ -42,7 +42,7 @@ export interface Job {
   id: string
   requestId: string
   technicianId: string | null
-  status: "Pending" | "Accepted" | "In Progress" | "Completed"
+  status: "Pending" | "Accepted" | "In Progress" | "In_Progress" | "Completed" | "Team_Confirmed" | "Dispatched"
   [key: string]: any
 }
 
@@ -281,4 +281,30 @@ export const api = {
     const { getSalaryDataAction } = await import("@/lib/actions")
     return getSalaryDataAction(period)
   },
+
+  async getNotifications() {
+    const { getNotificationsAction } = await import("@/lib/actions")
+    return getNotificationsAction()
+  },
+
+  async markNotificationAsRead(id: string) {
+    const { markNotificationAsReadAction } = await import("@/lib/actions")
+    return markNotificationAsReadAction(id)
+  },
+
+  async markAllNotificationsAsRead() {
+    const { markAllNotificationsAsReadAction } = await import("@/lib/actions")
+    return markAllNotificationsAsReadAction()
+  },
+}
+
+export interface Notification {
+  id: string
+  userId: string
+  type: string
+  title: string
+  message: string
+  link?: string | null
+  isRead: boolean
+  createdAt: Date | string
 }

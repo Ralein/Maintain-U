@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable } from "@/db/schema"
+import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable, notifications } from "@/db/schema"
 import { eq, or, and, desc, isNull, sql } from "drizzle-orm"
 import { cookies } from "next/headers"
 
@@ -903,20 +903,19 @@ export async function getJobsAction() {
         const myJobs = await db.select({
             id: jobs.id,
             company: companies.companyName,
-            service: requests.serviceType, // Changed from requests.type to requests.serviceType
-            location: sql<string>`'Client Location'`, // Placeholder as requests doesn't have address. Could join companies if needed.
+            service: requests.serviceType,
+            location: requests.locationAddress,
             status: jobs.status,
-            date: requests.preferredDate, // Changed from requests.date to requests.preferredDate
-            requestId: jobs.requestId
+            date: requests.preferredDate,
+            requestId: jobs.requestId,
+            priority: requests.priority,
+            createdAt: jobs.createdAt
         })
             .from(jobs)
             .leftJoin(requests, eq(jobs.requestId, requests.id))
-            .leftJoin(companies, eq(requests.companyId, companies.id)) // Join request creator company
+            .leftJoin(companies, eq(requests.companyId, companies.id))
             .where(eq(jobs.leadTechnicianId, tech.id))
-
-        // Also fetch "Invitations" - Jobs that are "Pending" and match tech skill? 
-        // OR logic: System assigns to tech -> status 'Pending' -> Tech accepts -> 'Active'
-        // Let's assume 'Pending' jobs assigned to techId are invitations.
+            .orderBy(desc(jobs.createdAt));
 
         return { jobs: myJobs }
     }
@@ -1223,6 +1222,18 @@ export async function acceptJobAction(jobId: string) {
             .set({ status: 'Team_Confirmed', updatedAt: new Date() })
             .where(eq(jobs.id, jobId));
 
+        // Create notification for company
+        const companyUserId = await getCompanyUserIdFromJob(jobId);
+        if (companyUserId) {
+            await createNotification(
+                companyUserId,
+                'Job_Update',
+                'Job Accepted',
+                `A technician has accepted your request ${jobId.slice(0, 8)}.`,
+                `/company/requests/${jobId}`
+            );
+        }
+
         return { success: true }
     } catch (e) {
         return { success: false, message: "Failed to accept job" }
@@ -1290,6 +1301,18 @@ export async function checkInAction(jobId: string, location: any) {
             await db.update(requests)
                 .set({ status: "In_Progress" })
                 .where(eq(requests.id, job.requestId));
+        }
+
+        // Create notification for company
+        const companyUserId = await getCompanyUserIdFromJob(jobId);
+        if (companyUserId) {
+            await createNotification(
+                companyUserId,
+                'Job_Update',
+                'Technician Arrived',
+                `Work has started on your request ${jobId.slice(0, 8)}.`,
+                `/company/requests/${jobId}`
+            );
         }
 
         return { success: true }
@@ -1366,6 +1389,18 @@ export async function completeJobAction(jobId: string, signature: string) {
                 await db.update(requests)
                     .set({ status: "Completed" })
                     .where(eq(requests.id, jobRecord.requestId));
+
+                // Create notification for company
+                const companyUserId = await getCompanyUserIdFromJob(jobId);
+                if (companyUserId) {
+                    await createNotification(
+                        companyUserId,
+                        'Job_Update',
+                        'Job Completed',
+                        `Your request ${jobId.slice(0, 8)} has been completed and signed off.`,
+                        `/company/requests/${jobId}`
+                    );
+                }
             }
         }
 
@@ -1494,5 +1529,83 @@ export async function deleteUserAction(userId: string) {
     } catch (e) {
         console.error("Delete user error:", e)
         return { success: false, message: "Failed to delete user" }
+    }
+}
+// Notification Actions
+async function getCompanyUserIdFromJob(jobId: string) {
+    try {
+        const result = await db.select({ userId: companies.userId })
+            .from(jobs)
+            .leftJoin(requests, eq(jobs.requestId, requests.id))
+            .leftJoin(companies, eq(requests.companyId, companies.id))
+            .where(eq(jobs.id, jobId))
+            .limit(1);
+        return result[0]?.userId;
+    } catch (e) {
+        console.error("Error finding company user:", e);
+        return null;
+    }
+}
+
+async function createNotification(userId: string, type: string, title: string, message: string, link?: string) {
+    try {
+        await db.insert(notifications).values({
+            userId,
+            type,
+            title,
+            message,
+            link,
+            isRead: false
+        });
+    } catch (e) {
+        console.error("Failed to create notification:", e);
+    }
+}
+
+export async function getNotificationsAction() {
+    try {
+        const cookiesList = await cookies()
+        const sessionToken = cookiesList.get("session_token")
+        if (!sessionToken) return { notifications: [] }
+
+        const session = JSON.parse(sessionToken.value)
+        const userId = session.userId
+
+        const results = await db.select().from(notifications)
+            .where(eq(notifications.userId, userId))
+            .orderBy(desc(notifications.createdAt))
+            .limit(50)
+
+        return { notifications: results }
+    } catch (e) {
+        console.error("Get notifications error:", e)
+        return { notifications: [] }
+    }
+}
+
+export async function markNotificationAsReadAction(id: string) {
+    try {
+        await db.update(notifications)
+            .set({ isRead: true })
+            .where(eq(notifications.id, id))
+        return { success: true }
+    } catch (e) {
+        return { success: false }
+    }
+}
+
+export async function markAllNotificationsAsReadAction() {
+    try {
+        const cookiesList = await cookies()
+        const sessionToken = cookiesList.get("session_token")
+        if (!sessionToken) return { success: false }
+
+        const session = JSON.parse(sessionToken.value)
+        await db.update(notifications)
+            .set({ isRead: true })
+            .where(eq(notifications.userId, session.userId))
+        return { success: true }
+    } catch (e) {
+        return { success: false }
     }
 }

@@ -10,26 +10,42 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 export default function AdminDashboard() {
   const router = useRouter()
   const [stats, setStats] = useState({
-    pendingTechs: 0,
+    pendingRequests: 0,
     activeJobs: 0,
     completedJobs: 0,
-    activeList: [] as any[]
+    activeList: [] as any[],
+    pendingTechs: 0
   })
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [techsRes, jobsRes] = await Promise.all([
+        const [techsRes, jobsRes, reqsRes] = await Promise.all([
           api.getTechnicians(),
-          api.getJobs()
+          api.getJobs(),
+          api.getRequests()
         ])
 
-        const pendingTechs = techsRes.technicians.filter((t: any) => t.status === "Pending").length
-        const activeJobs = jobsRes.jobs.filter((j: any) => j.status === "In Progress" || j.status === "Accepted").length
-        const completedJobs = jobsRes.jobs.filter((j: any) => j.status === "Completed").length
-        const activeList = jobsRes.jobs.filter((j: any) => j.status === "In Progress" || j.status === "Accepted").slice(0, 5)
+        const pendingTechsCount = techsRes.technicians.filter((t: any) => t.status === "Pending").length
 
-        setStats({ pendingTechs, activeJobs, completedJobs, activeList })
+        // Pending = Requests that are NOT yet fully assigned/confirmed
+        const pendingRequests = reqsRes.requests.filter((r: any) =>
+          ["Requested", "Reviewing", "Team_Forming", "Invites_Sent", "New"].includes(r.status)
+        ).length
+
+        const activeJobs = jobsRes.jobs.filter((j: any) =>
+          ["In Progress", "In_Progress", "Accepted", "Team_Confirmed", "Dispatched", "On_The_Way", "Arrived", "Work_Started"].includes(j.status)
+        ).length
+
+        const completedJobs = jobsRes.jobs.filter((j: any) =>
+          ["Completed", "Work_Completed", "Sign_Pending"].includes(j.status)
+        ).length
+
+        const activeList = jobsRes.jobs.filter((j: any) =>
+          ["In Progress", "In_Progress", "Accepted"].includes(j.status)
+        ).slice(0, 5)
+
+        setStats({ pendingRequests, activeJobs, completedJobs, activeList, pendingTechs: pendingTechsCount })
       } catch (error) {
         console.error("Failed to fetch admin stats", error)
       }
@@ -38,7 +54,7 @@ export default function AdminDashboard() {
   }, [])
 
   const statCards = [
-    { label: "Pending", value: stats.pendingTechs.toString(), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
+    { label: "Pending", value: stats.pendingRequests.toString(), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
     { label: "Active Jobs", value: stats.activeJobs.toString(), icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
     { label: "Completed", value: stats.completedJobs.toString(), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/20" },
   ]

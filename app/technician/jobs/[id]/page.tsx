@@ -47,100 +47,129 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
   }
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="min-h-screen app-gradient flex flex-col items-center justify-center gap-4">
+      <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
+      <span className="text-sm font-bold text-muted-foreground animate-pulse">Loading job details...</span>
     </div>
   )
 
-  if (!job) return <div className="p-6">Job not found</div>
+  if (!job) return (
+    <div className="min-h-screen app-gradient flex items-center justify-center">
+      <div className="glass-card p-10 rounded-3xl text-center">
+        <p className="font-bold text-muted-foreground">Job not found</p>
+        <button onClick={() => router.back()} className="text-primary text-sm font-bold mt-4">Go Back</button>
+      </div>
+    </div>
+  )
+
+  const isCompleted = job.status === 'Completed';
+  const isInProgress = job.status === 'In Progress' || job.status === 'In_Progress';
 
   return (
-    <div className="min-h-screen px-6 pt-6 pb-24">
+    <div className="min-h-screen pb-32 app-gradient">
       {/* Header */}
-      <div className="mb-6 relative">
-        <button onClick={() => router.back()} className="absolute left-0 top-0 p-2 -ml-2 -mt-1 hover:bg-muted rounded-full transition-colors">
+      <header className="sticky top-0 z-30 px-6 py-6 glass border-b-0 mb-8 flex items-center justify-between shadow-sm">
+        <button onClick={() => router.back()} className="w-10 h-10 glass rounded-xl flex items-center justify-center hover:bg-muted/50 transition-all shrink-0 active:scale-90">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Job Details</p>
-          <h1 className="text-xl font-bold">{job.id}</h1>
+        <div className="text-right">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Job Order</p>
+          <h1 className="text-sm font-black text-foreground mt-1">{job.id}</h1>
         </div>
-      </div>
+      </header>
 
-      {/* Status Badge */}
-      <div className="flex justify-center mb-8">
-        <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${job.status === 'Completed' ? 'bg-green-100 text-green-700' :
-          job.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-            job.status === 'Accepted' ? 'bg-purple-100 text-purple-700' :
-              'bg-yellow-100 text-yellow-700'
-          }`}>
-          {job.status}
-        </span>
-      </div>
-
-      {/* Info Cards */}
-      <div className="space-y-4 mb-24">
-        <div className="p-5 rounded-2xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Company</p>
-          <h2 className="text-lg font-bold mb-2">{job.company}</h2>
-          <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-            <p>{job.address || job.location || "Location not provided"}</p>
+      <main className="px-6 space-y-6">
+        {/* Status Card */}
+        <div className="flex justify-center mb-4">
+          <div className={`px-6 py-2 rounded-2xl text-xs font-black uppercase tracking-widest border shadow-sm ${isCompleted
+              ? 'bg-green-500/10 text-green-600 border-green-500/20'
+              : isInProgress
+                ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-orange-500/5'
+                : 'bg-primary/10 text-primary border-primary/20'
+            }`}>
+            {job.status.replace('_', ' ')}
           </div>
         </div>
 
+        {/* Main Info Card */}
+        <section className="glass-card p-6 rounded-[2rem] border-t border-white/20">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-3">Client Company</p>
+          <h2 className="text-2xl font-black text-foreground mb-4 leading-tight">{job.company}</h2>
+
+          <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-2xl border border-border/50">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <MapPin className="w-5 h-5 text-primary" />
+            </div>
+            <p className="text-sm font-bold text-foreground/80 leading-snug">{job.address || job.location || "Location not provided"}</p>
+          </div>
+        </section>
+
+        {/* Schedule Grid */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl bg-card border border-border">
-            <Calendar className="w-5 h-5 text-primary mb-2" />
-            <p className="text-xs text-muted-foreground">Date</p>
-            <p className="font-semibold text-sm">{job.date || "Today"}</p>
+          <div className="glass-card p-5 rounded-3xl">
+            <Calendar className="w-5 h-5 text-primary mb-3" />
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Date</p>
+            <p className="font-bold text-sm text-foreground mt-1">{job.date ? new Date(job.date).toLocaleDateString() : "Today"}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-card border border-border">
-            <Clock className="w-5 h-5 text-primary mb-2" />
-            <p className="text-xs text-muted-foreground">Time</p>
-            <p className="font-semibold text-sm">{job.time || "09:00 AM"}</p>
+          <div className="glass-card p-5 rounded-3xl">
+            <Clock className="w-5 h-5 text-primary mb-3" />
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Time Slot</p>
+            <p className="font-bold text-sm text-foreground mt-1">{job.time || job.timeSlot || "Flexible"}</p>
           </div>
         </div>
 
-        <div className="p-5 rounded-2xl bg-card border border-border">
-          <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Task Description</p>
-          <p className="text-sm leading-relaxed">{job.description || `Required service: ${job.service}`}</p>
-        </div>
+        {/* Description */}
+        <section className="glass-card p-6 rounded-[2rem]">
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4">Service Details</p>
+          <p className="text-sm font-medium leading-relaxed text-foreground/70 bg-muted/20 p-4 rounded-2xl border border-border/50">
+            {job.description || `Maintenance requested for ${job.service || 'general'} systems. Please perform initial inspection and report findings.`}
+          </p>
+        </section>
 
-        <div className="p-5 rounded-2xl bg-card border border-border flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Site Supervisor</p>
-            <p className="font-semibold">{job.supervisor || "N/A"}</p>
+        {/* Contact */}
+        <section className="glass-card p-5 rounded-3xl flex items-center justify-between border-b-4 border-b-primary/20">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-muted/50 flex items-center justify-center font-black text-muted-foreground">
+              {(job.supervisor || "S").charAt(0)}
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Supervisor</p>
+              <p className="font-bold text-foreground">{job.supervisor || "N/A"}</p>
+            </div>
           </div>
-          <button className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <a
+            href={`tel:${job.supervisorPhone || ''}`}
+            className="w-12 h-12 rounded-2xl glass hover:bg-primary hover:text-white transition-all flex items-center justify-center text-primary active:scale-90"
+          >
             <Phone className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+          </a>
+        </section>
+      </main>
 
-      {/* Action Button */}
-      <div className="fixed bottom-6 left-6 right-6">
+      {/* Action Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 p-6 glass border-t-0 z-40">
         {job.status === 'Pending' ? (
           <button
             onClick={handleAccept}
             disabled={actionLoading}
-            className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+            className="w-full py-4.5 bg-primary text-primary-foreground rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 hover:shadow-primary/40 active:scale-95 transition-all flex items-center justify-center gap-3">
             {actionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
-            Accept Job
+            {actionLoading ? "Processing..." : "Accept Job"}
           </button>
-        ) : job.status === 'Accepted' || job.status === 'In Progress' ? (
+        ) : (job.status === 'Accepted' || isInProgress || job.status === 'Team_Confirmed' || job.status === 'Dispatched') ? (
           <button
             onClick={handleStart}
-            className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+            className="w-full py-4.5 bg-green-600 text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-2xl shadow-green-600/30 hover:bg-green-700 active:scale-95 transition-all flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2">
             <PlayCircle className="w-5 h-5" />
-            {job.status === 'In Progress' ? 'Resume Work' : 'Start Work'}
+            {isInProgress ? 'Resume Work' : 'Check In'}
           </button>
         ) : (
-          <button disabled className="w-full py-4 bg-muted text-muted-foreground rounded-xl font-bold text-lg cursor-not-allowed">
+          <div className="w-full py-4.5 bg-muted/50 text-muted-foreground border border-border/60 rounded-2xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+            <CheckCircle className="w-5 h-5 opacity-50" />
             Job Completed
-          </button>
+          </div>
         )}
-      </div>
+      </footer>
     </div>
   )
 }

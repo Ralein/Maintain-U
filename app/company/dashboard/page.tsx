@@ -12,8 +12,8 @@ export default function CompanyDashboard() {
   const [requests, setRequests] = useState<Request[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    active: 0,
-    inProgress: 0,
+    pending: 0,
+    activeJobs: 0,
     completed: 0
   })
 
@@ -24,12 +24,20 @@ export default function CompanyDashboard() {
         if (res.requests) {
           setRequests(res.requests)
 
-          // Calculate stats
-          const active = res.requests.filter((r: any) => r.status === "New" || r.status === "Assigned").length
-          const inProgress = res.requests.filter((r: any) => r.status === "In Progress").length
-          const completed = res.requests.filter((r: any) => r.status === "Completed").length
+          // Calculate stats using granular statuses
+          const pending = res.requests.filter((r: any) =>
+            ["Requested", "Reviewing", "Team_Forming", "Invites_Sent", "New", "Assigned"].includes(r.status)
+          ).length
 
-          setStats({ active, inProgress, completed })
+          const activeJobs = res.requests.filter((r: any) =>
+            ["Team_Confirmed", "Dispatched", "On_The_Way", "Arrived", "Work_Started", "In_Progress", "In Progress", "Work_Completed", "Sign_Pending"].includes(r.status)
+          ).length
+
+          const completed = res.requests.filter((r: any) =>
+            ["Completed", "Invoiced", "Paid"].includes(r.status)
+          ).length
+
+          setStats({ pending, activeJobs, completed })
         }
       } catch (error) {
         console.error("Failed to fetch dashboard data", error)
@@ -42,8 +50,8 @@ export default function CompanyDashboard() {
   }, [])
 
   const statCards = [
-    { label: "Active", value: stats.active.toString(), icon: TrendingUp, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10", border: "border-blue-200 dark:border-blue-900" },
-    { label: "In Progress", value: stats.inProgress.toString(), icon: Clock, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10", border: "border-orange-200 dark:border-orange-900" },
+    { label: "Pending", value: stats.pending.toString(), icon: TrendingUp, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10", border: "border-blue-200 dark:border-blue-900" },
+    { label: "Active Jobs", value: stats.activeJobs.toString(), icon: Clock, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10", border: "border-orange-200 dark:border-orange-900" },
     { label: "Completed", value: stats.completed.toString(), icon: CheckCircle, color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10 dark:bg-green-400/10", border: "border-green-200 dark:border-green-900" },
   ]
 

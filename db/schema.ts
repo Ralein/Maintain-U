@@ -247,3 +247,14 @@ export const technicianScores = pgTable("technician_scores", {
     totalRatings: integer("total_ratings").default(0),
     lastUpdated: timestamp("last_updated").defaultNow(),
 });
+
+export const notifications = pgTable("notifications", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id).notNull(),
+    type: text("type").notNull(), // Job_Update, Payment, System
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    link: text("link"),
+    isRead: boolean("is_read").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
