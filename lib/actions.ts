@@ -1,8 +1,8 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum } from "@/db/schema"
-import { eq, or, and, desc } from "drizzle-orm"
+import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable } from "@/db/schema"
+import { eq, or, and, desc, isNull, sql } from "drizzle-orm"
 import { cookies } from "next/headers"
 
 // Helper to simulate delay if requested, or just remove locally
@@ -199,7 +199,10 @@ export async function registerCompanyAction(data: any) {
             userId: user.id,
             companyName: companyName,
             gstin: gst || "",
-            address: address || ""
+            address: address || "",
+            industryType: industry || "General", // Default
+            email: email,
+            contactPerson: contactName
         })
     }
 
@@ -212,9 +215,23 @@ export async function registerCompanyAction(data: any) {
 // Admin Actions
 
 export async function getRequestsAction() {
-    // Fetch all requests for admin
-    const allRequests = await db.select().from(requests).orderBy(requests.createdAt);
-    return { requests: allRequests }
+    // Fetch all requests for admin with company details
+    const result = await db.select({
+        request: requests,
+        company: companies
+    })
+        .from(requests)
+        .leftJoin(companies, eq(requests.companyId, companies.id))
+        .orderBy(desc(requests.createdAt));
+
+    // Flatten structure for UI consumption
+    const flattenedRequests = result.map(({ request, company }) => ({
+        ...request,
+        companyName: company?.companyName || "Unknown Company",
+        companyLocation: company?.address,
+    }));
+
+    return { requests: flattenedRequests }
 }
 
 export async function getCompanyRequestsAction() {
@@ -224,9 +241,15 @@ export async function getCompanyRequestsAction() {
 
     const session = JSON.parse(sessionToken.value)
 
+    const companyProfile = await db.query.companies.findFirst({
+        where: eq(companies.userId, session.userId)
+    })
+
+    if (!companyProfile) return { requests: [] }
+
     const compRequests = await db.select().from(requests)
-        .where(eq(requests.companyId, session.userId))
-        .orderBy(requests.createdAt);
+        .where(eq(requests.companyId, companyProfile.id))
+        .orderBy(desc(requests.createdAt));
 
     return { requests: compRequests }
 }
@@ -257,7 +280,7 @@ export async function getTechniciansAction() {
                         location = JSON.parse(lastAttendance[0].locationCheckIn);
                     } catch (e) { }
                 }
-                lastSeen = lastAttendance[0].date
+                lastSeen = lastAttendance[0].checkInTime ? new Date(lastAttendance[0].checkInTime).toISOString() : null
             }
         }
 
@@ -717,19 +740,22 @@ export async function createRequestAction(data: any) {
         return { success: false, message: "User not found" }
     }
 
+    if (!companyProfile) {
+        return { success: false, message: "Company profile not found" }
+    }
+
     try {
         const [newReq] = await db.insert(requests).values({
-            companyId: session.userId, // Storing User ID as Company ID to match retrieval logic
-            companyName: companyProfile?.companyName || companyUser.name || "Unknown Company",
-            type: data.serviceType,
+            companyId: companyProfile.id,
             priority: data.priority,
             description: data.description,
+            serviceType: data.serviceType,
             timeSlot: data.timeSlot,
-            date: data.date,
-            supervisor: data.supervisor,
+            preferredDate: data.date, // schema has preferredDate, data has date
+            supervisorName: data.supervisor,
             supervisorPhone: data.supervisorPhone,
             photos: data.photos || [],
-            status: "New"
+            status: "Requested"
         }).returning();
 
         return { success: true, id: newReq.id }
@@ -799,16 +825,16 @@ export async function registerTechnicianAction(data: any) {
                 updatedAt: new Date()
             } as any).where(eq(technicians.id, existingTech.id));
         } else {
-            // Insert
+            // Create
             await db.insert(technicians).values({
                 userId: user.id,
                 dob: techData.dob,
                 gender: techData.gender,
                 address: techData.address,
-                experience: parseInt(techData.experience) || 0,
+                experience: parseInt(techData.experience),
                 primarySkill: techData.primarySkill,
                 skills: [techData.primarySkill],
-                dailyRate: parseInt(techData.dailyRate) || 0,
+                dailyRate: parseInt(techData.dailyRate || "800"), // Default rate
                 bankDetails: {
                     bankName: techData.bankName,
                     accountHolder: techData.accountHolder,
@@ -816,18 +842,185 @@ export async function registerTechnicianAction(data: any) {
                     ifsc: techData.ifsc,
                     upi: techData.upi
                 },
-                documents: {}, // Empty for now
-                status: "Pending"
-            } as any);
+                status: 'pending' // Default to pending until approved
+            } as any)
         }
 
-        // Update session to reflect pending status
-        (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: 'technician', status: 'pending' }), { httpOnly: true, path: '/' });
+        return { success: true, user }
 
-        return { success: true }
-    } catch (e) {
-        console.error("Register technician error:", e)
-        return { success: false, message: "Registration failed" }
+    } catch (e: any) {
+        console.error("Register Technician Error:", e)
+        return { success: false, message: e.message || "Registration failed" }
+    }
+}
+
+// Job Actions
+
+export async function getJobsAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { jobs: [] }
+
+    const session = JSON.parse(sessionToken.value)
+
+    // If technician, fetch available (pending) OR assigned to them
+    if (session.role === 'technician') {
+        const [tech] = await db.select({ id: technicians.id }).from(technicians)
+            .where(eq(technicians.userId, session.userId))
+            .limit(1)
+
+        if (!tech) return { jobs: [] }
+
+        // Fetch jobs assigned to this technician
+        const myJobs = await db.select({
+            id: jobs.id,
+            company: companies.companyName,
+            service: requests.serviceType, // Changed from requests.type to requests.serviceType
+            location: sql<string>`'Client Location'`, // Placeholder as requests doesn't have address. Could join companies if needed.
+            status: jobs.status,
+            date: requests.preferredDate, // Changed from requests.date to requests.preferredDate
+            requestId: jobs.requestId
+        })
+            .from(jobs)
+            .leftJoin(requests, eq(jobs.requestId, requests.id))
+            .leftJoin(companies, eq(requests.companyId, companies.id)) // Join request creator company
+            .where(eq(jobs.leadTechnicianId, tech.id))
+
+        // Also fetch "Invitations" - Jobs that are "Pending" and match tech skill? 
+        // OR logic: System assigns to tech -> status 'Pending' -> Tech accepts -> 'Active'
+        // Let's assume 'Pending' jobs assigned to techId are invitations.
+
+        return { jobs: myJobs }
+    }
+
+    // If Admin, fetch all jobs
+    if (session.role === 'admin' || session.role === 'company') {
+        const result = await db.select({
+            id: jobs.id,
+            company: companies.companyName,
+            service: requests.serviceType,
+            location: sql<string>`'Address Placeholder'`,
+            status: jobs.status,
+            date: requests.preferredDate,
+            requestId: jobs.requestId
+        })
+            .from(jobs)
+            .leftJoin(requests, eq(jobs.requestId, requests.id))
+            .leftJoin(companies, eq(requests.companyId, companies.id))
+            .orderBy(desc(jobs.createdAt));
+
+        return { jobs: result }
+    }
+
+    return { jobs: [] }
+}
+
+// Attendance Actions
+export async function markAttendanceAction(status: "present" | "leave") {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false, message: "Not authenticated" }
+
+    const session = JSON.parse(sessionToken.value)
+
+    const tech = await db.query.technicians.findFirst({
+        where: eq(technicians.userId, session.userId)
+    })
+
+    if (!tech) return { success: false, message: "Technician profile not found" }
+
+    const today = new Date().toISOString().split('T')[0]
+
+    // Find assignment for today
+    const assignment = await db.query.dailyAssignments.findFirst({
+        where: and(
+            eq(dailyAssignments.workDate, today),
+            // We need to link assignment to tech. But assignment is Team logic.
+            // Simplified: Find assignment where tech is member of MasterTeam? 
+            // Or just allow tech to check in if they have a Job?
+            // Architecture: Admin assigns Daily Team.
+            // Since we don't have DailyTeamMembers table yet (implied by Assignment -> Attendance),
+            // We just let them check in if they have a Job in 'In_Progress' or similar?
+            // Or just CREATE an attendance record freely?
+            // Best: Find ANY Active assignment for a Job they are lead of?
+        )
+    })
+
+    // Fallback: Just insert attendance if they are checking in. 
+    // BUT we need dailyAssignmentId.
+    // Let's find existing attendance or Create Ad-hoc assignment?
+    // Since Check-In on Job Page handles job-specific attendance,
+    // this global action is vague. Let's redirect them to use Job Check-in.
+    return { success: false, message: "Use the Check-In button on your Job details page." }
+}
+
+export async function getTechnicianAttendanceAction(month?: string) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false, data: [] }
+
+    const session = JSON.parse(sessionToken.value)
+
+    const tech = await db.query.technicians.findFirst({
+        where: eq(technicians.userId, session.userId)
+    })
+
+    if (!tech) return { success: false, data: [] }
+
+    const records = await db.select().from(attendance)
+        .where(eq(attendance.technicianId, tech.id))
+        .orderBy(desc(attendance.createdAt))
+
+    return { success: true, data: records }
+}
+
+// Salary Actions
+export async function getSalaryDataAction(period: string) {
+    // 1. Get all active technicians
+    const allTechs = await db.select({
+        id: technicians.id,
+        userId: users.id,
+        name: users.name,
+        dailyRate: technicians.dailyRate,
+        status: technicians.status
+    })
+        .from(technicians)
+        .leftJoin(users, eq(users.id, technicians.userId))
+        .where(eq(technicians.status, 'active'))
+
+    // 2. Calculate stats for each
+    const salaryData = await Promise.all(allTechs.map(async (tech) => {
+        const attendanceRecords = await db.select().from(attendance)
+            .where(
+                and(
+                    eq(attendance.technicianId, tech.id),
+                    eq(attendance.status, 'present')
+                )
+            )
+
+        const daysPresent = attendanceRecords.length;
+        const rate = tech.dailyRate || 800;
+        const net = daysPresent * rate;
+
+        return {
+            id: tech.id,
+            name: tech.name || "Unknown",
+            days: daysPresent,
+            substituted: 0,
+            netDays: daysPresent,
+            rate: rate,
+            deductions: 0,
+            net: net
+        }
+    }))
+
+    return {
+        technicians: salaryData,
+        summary: {
+            totalPayable: salaryData.reduce((acc, curr) => acc + curr.net, 0),
+            totalTechs: salaryData.length,
+            totalWorkDays: salaryData.reduce((acc, curr) => acc + curr.days, 0)
+        }
     }
 }
 
@@ -858,21 +1051,13 @@ export async function assignTeamAction(requestId: string, techIds: string[], lea
     }
 
     try {
-        // 1. Update Request Status
         await db.update(requests)
-            .set({ status: 'Assigned' })
+            .set({ status: 'Team_Confirmed' })
             .where(eq(requests.id, requestId));
 
         // 2. Create Job Entries for each technician
         // Check if jobs already exist for this request to prevent duplicates? 
         // For simplicity, we assume fresh assignment or just insert.
-
-        const jobValues = techIds.map(techId => ({
-            requestId,
-            technicianId: techId, // This might need lookup if techId passed is user.id not technician.id
-            // Ideally UI passes technician.id. Let's assume it does.
-            status: 'Pending', // Tech needs to accept
-        }))
 
         // Note: techIds from UI are likely userIds or technicianIds. 
         // If they are userIds, we need to resolve to technicianIds?
@@ -891,8 +1076,8 @@ export async function assignTeamAction(requestId: string, techIds: string[], lea
 
         const resolvedJobValues = techs.map(t => ({
             requestId,
-            technicianId: t.id,
-            status: 'Pending'
+            leadTechnicianId: t.id, // Set as lead/assigned tech
+            status: 'Team_Confirmed' as const,
         }));
 
         if (resolvedJobValues.length > 0) {
@@ -906,84 +1091,34 @@ export async function assignTeamAction(requestId: string, techIds: string[], lea
     }
 }
 
-export async function getJobsAction() {
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get("session_token")
-    if (!sessionToken) return { jobs: [] }
 
-    const session = JSON.parse(sessionToken.value)
-
-    // If technician, fetch their jobs
-    if (session.role === 'technician') {
-        const result = await db.select({
-            job: jobs,
-            req: requests
-        })
-            .from(jobs)
-            .innerJoin(requests, eq(jobs.requestId, requests.id))
-            .where(eq(jobs.technicianId, session.userId)) // Assuming userId in session maps to technicianId directly in jobs?
-        // Wait, jobs.technicianId stores TECHNICIAN table ID. session.userId matches USERS.id.
-        // We need to look up technician ID from user ID first.
-
-        const tech = await db.query.technicians.findFirst({
-            where: eq(technicians.userId, session.userId)
-        })
-
-        if (!tech) return { jobs: [] }
-
-        const techJobs = await db.select({
-            job: jobs,
-            req: requests
-        })
-            .from(jobs)
-            .innerJoin(requests, eq(jobs.requestId, requests.id))
-            .where(eq(jobs.technicianId, tech.id))
-            .orderBy(jobs.updatedAt);
-
-        return {
-            jobs: techJobs.map(({ job, req }) => ({
-                id: job.id,
-                requestId: req.id,
-                technicianId: job.technicianId,
-                company: req.companyName,
-                service: req.type,
-                status: job.status,
-                location: "Location Placeholder",
-                time: req.timeSlot,
-                date: req.date
-            }))
-        }
-    }
-
-    // If Admin, maybe fetch all? Or specific admin job view? 
-    // Usually admin views Requests, not individual technician jobs directly in this list.
-    return { jobs: [] }
-}
 
 export async function getJobByIdAction(id: string) {
     const result = await db.select({
         job: jobs,
-        req: requests
+        req: requests,
+        comp: companies
     })
         .from(jobs)
         .innerJoin(requests, eq(jobs.requestId, requests.id))
+        .leftJoin(companies, eq(requests.companyId, companies.id))
         .where(eq(jobs.id, id))
         .limit(1);
 
     if (result.length === 0) return { job: null }
 
-    const { job, req } = result[0];
+    const { job, req, comp } = result[0];
 
     return {
         job: {
             id: job.id,
             requestId: req.id,
-            technicianId: job.technicianId,
-            company: req.companyName,
-            address: "Address Placeholder",
-            service: req.type,
+            technicianId: job.leadTechnicianId, // Map DB leadTechnicianId to API technicianId
+            company: comp?.companyName || "Unknown Company",
+            address: comp?.address || "Address Placeholder",
+            service: req.serviceType, // Changed from req.type to req.serviceType
             description: req.description,
-            supervisor: req.supervisor,
+            supervisor: req.supervisorName, // Changed from req.supervisor to req.supervisorName
             supervisorPhone: req.supervisorPhone,
             team: [],
             status: job.status
@@ -998,7 +1133,7 @@ export async function getJobByIdAction(id: string) {
 export async function acceptJobAction(jobId: string) {
     try {
         await db.update(jobs)
-            .set({ status: 'Accepted', updatedAt: new Date() })
+            .set({ status: 'Team_Confirmed', updatedAt: new Date() })
             .where(eq(jobs.id, jobId));
 
         return { success: true }
@@ -1011,26 +1146,62 @@ export async function checkInAction(jobId: string, location: any) {
     const job = await db.query.jobs.findFirst({ where: eq(jobs.id, jobId) })
     if (!job) return { success: false, message: "Job not found" }
 
-    // Create attendance record
     try {
+        // Simplified Check-in Logic adapting to new schema
+        // 1. Ensure DailyAssignment exists for today
+        // 2. Insert attendance record linked to assignment
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        let assignment = await db.query.dailyAssignments.findFirst({
+            where: and(
+                eq(dailyAssignments.jobId, jobId),
+                eq(dailyAssignments.workDate, todayStr)
+            )
+        });
+
+        if (!assignment) {
+            [assignment] = await db.insert(dailyAssignments).values({
+                jobId,
+                workDate: todayStr,
+                status: "Active"
+            }).returning();
+        }
+
+        // Check for open session
+        const openSession = await db.select().from(attendance)
+            .where(and(
+                eq(attendance.dailyAssignmentId, assignment.id),
+                eq(attendance.technicianId, job.leadTechnicianId!), // Assuming Lead Tech for now
+                isNull(attendance.checkOutTime)
+            ))
+            .limit(1);
+
+        if (openSession.length > 0) {
+            await db.update(attendance)
+                .set({ locationCheckIn: JSON.stringify(location) })
+                .where(eq(attendance.id, openSession[0].id));
+            return { success: true, message: "Location updated" }
+        }
+
+        // New Check-in
         await db.insert(attendance).values({
-            jobId,
-            technicianId: job.technicianId!,
-            date: new Date().toLocaleDateString("en-US"),
+            dailyAssignmentId: assignment.id,
+            technicianId: job.leadTechnicianId!,
             checkInTime: new Date(),
             locationCheckIn: JSON.stringify(location),
-            status: 'present'
+            status: 'Present'
         })
 
         // Update Job status
         await db.update(jobs)
-            .set({ status: 'In Progress', updatedAt: new Date() })
+            .set({ status: "In_Progress", startedAt: new Date() })
             .where(eq(jobs.id, jobId));
 
         return { success: true }
-    } catch (e) {
+    } catch (e: any) {
         console.error("Check-in error:", e)
-        return { success: false, message: "Failed to check in" }
+        return { success: false, message: e.message || "Failed to check in" }
     }
 }
 
@@ -1041,7 +1212,8 @@ export async function postJobUpdateAction(jobId: string, message: string, photos
     try {
         await db.insert(jobUpdates).values({
             jobId,
-            technicianId: job.technicianId!,
+            technicianId: job.leadTechnicianId!, // Fixed: Use leadTechnicianId
+            type: 'update', // Added missing 'type'
             message,
             photos,
         })
@@ -1055,28 +1227,36 @@ export async function completeJobAction(jobId: string, signature: string) {
     try {
         await db.update(jobs)
             .set({
-                status: 'Completed',
-                signature,
+                status: "Completed", // requestStatusEnum 'Completed'
                 completedAt: new Date(),
-                updatedAt: new Date()
+                signatureUrl: signature // Changed from signature to signatureUrl
             })
             .where(eq(jobs.id, jobId));
 
         // Also ensure check-out if not done? 
         // For simplicity, we assume check-out is separate or auto-done.
         // Let's find open attendance for today and close it.
-        const today = new Date().toLocaleDateString("en-US")
-        const openAttendance = await db.query.attendance.findFirst({
+        const today = new Date().toISOString().split('T')[0];
+        const assignment = await db.query.dailyAssignments.findFirst({
             where: and(
-                eq(attendance.jobId, jobId),
-                eq(attendance.date, today)
+                eq(dailyAssignments.jobId, jobId),
+                eq(dailyAssignments.workDate, today)
             )
         })
 
-        if (openAttendance && !openAttendance.checkOutTime) {
-            await db.update(attendance)
-                .set({ checkOutTime: new Date() })
-                .where(eq(attendance.id, openAttendance.id));
+        if (assignment) {
+            const openAttendance = await db.query.attendance.findFirst({
+                where: and(
+                    eq(attendance.dailyAssignmentId, assignment.id),
+                    isNull(attendance.checkOutTime)
+                )
+            })
+
+            if (openAttendance) {
+                await db.update(attendance)
+                    .set({ checkOutTime: new Date() })
+                    .where(eq(attendance.id, openAttendance.id));
+            }
         }
 
         return { success: true }

@@ -1,49 +1,52 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { Zap, Wrench, ArrowRight } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function TechnicianJobsPage() {
   const [activeTab, setActiveTab] = useState<"invitations" | "my-jobs" | "calendar">("invitations")
 
-  const invitations = [
-    {
-      id: "INV-001",
-      company: "ABC Industries",
-      location: "Industrial Area, Block A",
-      service: "Electrical Maintenance",
-      duration: "4 hours",
-      rate: "₹800",
-      icon: Zap,
-    },
-    {
-      id: "INV-002",
-      company: "XYZ Corp",
-      location: "Downtown Complex",
-      service: "Mechanical Repair",
-      duration: "6 hours",
-      rate: "₹1200",
-      icon: Wrench,
-    },
-  ]
 
-  const myJobs = [
-    {
-      id: "JOB-001",
-      company: "ABC Industries",
-      date: "Jan 15, 2025",
-      status: "Scheduled",
-      icon: Zap,
-    },
-    {
-      id: "JOB-002",
-      company: "Tech Solutions",
-      date: "Jan 16, 2025",
-      status: "Scheduled",
-      icon: Wrench,
-    },
-  ]
+  const [invitations, setInvitations] = useState<any[]>([])
+  const [myJobs, setMyJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const res = await api.getJobs()
+        const allJobs = res.jobs || []
+
+        // Filter jobs
+        const pending = allJobs.filter((j: any) => j.status === 'Pending')
+        const accepted = allJobs.filter((j: any) => j.status === 'Accepted' || j.status === 'In Progress' || j.status === 'Completed')
+
+        setInvitations(pending)
+        setMyJobs(accepted)
+      } catch (error) {
+        console.error("Failed to fetch jobs")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchJobs()
+  }, [])
+
+  const handleAccept = async (jobId: string) => {
+    try {
+      await api.acceptJob(jobId)
+      // Refresh
+      const res = await api.getJobs()
+      const allJobs = res.jobs || []
+      setInvitations(allJobs.filter((j: any) => j.status === 'Pending'))
+      setMyJobs(allJobs.filter((j: any) => j.status === 'Accepted' || j.status === 'In Progress' || j.status === 'Completed'))
+    } catch (e) {
+      console.error("Failed to accept")
+    }
+  }
 
   return (
     <div className="min-h-screen pb-32">
@@ -83,7 +86,7 @@ export default function TechnicianJobsPage() {
               >
                 <div className="flex items-start gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <inv.icon className="w-5 h-5 text-primary" strokeWidth={1.5} />
+                    <Zap className="w-5 h-5 text-primary" strokeWidth={1.5} />
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">{inv.company}</p>
@@ -98,7 +101,7 @@ export default function TechnicianJobsPage() {
                   <button className="flex-1 py-2 px-3 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-semibold">
                     Decline
                   </button>
-                  <button className="flex-1 py-2 px-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors text-sm">
+                  <button onClick={() => handleAccept(inv.id)} className="flex-1 py-2 px-3 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-colors text-sm">
                     Accept
                   </button>
                 </div>

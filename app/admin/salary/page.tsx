@@ -1,42 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Download } from "lucide-react"
+import { Download, RefreshCw } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function AdminSalaryPage() {
   const [period, setPeriod] = useState("January 2025")
 
-  const salaryData = [
-    {
-      name: "Raj Kumar",
-      days: 24,
-      substituted: 0,
-      netDays: 24,
-      rate: 800,
-      deductions: 0,
-      net: 19200,
-    },
-    {
-      name: "Priya Singh",
-      days: 22,
-      substituted: 1,
-      netDays: 21,
-      rate: 750,
-      deductions: 500,
-      net: 15250,
-    },
-    {
-      name: "Amit Patel",
-      days: 20,
-      substituted: 0,
-      netDays: 20,
-      rate: 900,
-      deductions: 0,
-      net: 18000,
-    },
-  ]
+  const [salaryData, setSalaryData] = useState<any[]>([])
+  const [summary, setSummary] = useState({ totalPayable: 0, totalTechs: 0, totalWorkDays: 0 })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchData()
+  }, [period])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const res = await api.getSalaryData(period)
+      setSalaryData(res.technicians || [])
+      setSummary(res.summary || { totalPayable: 0, totalTechs: 0, totalWorkDays: 0 })
+    } catch (e) {
+      console.error("Failed to fetch salary data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen pb-32">
@@ -48,7 +40,7 @@ export default function AdminSalaryPage() {
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          
+
         </div>
       </header>
 
@@ -57,15 +49,17 @@ export default function AdminSalaryPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           <div className="glass-card bg-blue-500/10 border-blue-500/20 p-4 rounded-2xl text-center">
-            <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-1">₹52.45K</div>
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+              ₹{summary.totalPayable > 1000 ? (summary.totalPayable / 1000).toFixed(1) + 'K' : summary.totalPayable}
+            </div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Total Payable</div>
           </div>
           <div className="glass-card bg-purple-500/10 border-purple-500/20 p-4 rounded-2xl text-center">
-            <div className="text-xl font-bold text-purple-600 dark:text-purple-400 mb-1">3</div>
+            <div className="text-xl font-bold text-purple-600 dark:text-purple-400 mb-1">{summary.totalTechs}</div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Technicians</div>
           </div>
           <div className="glass-card bg-green-500/10 border-green-500/20 p-4 rounded-2xl text-center">
-            <div className="text-xl font-bold text-green-600 dark:text-green-400 mb-1">66</div>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400 mb-1">{summary.totalWorkDays}</div>
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Work Days</div>
           </div>
         </div>

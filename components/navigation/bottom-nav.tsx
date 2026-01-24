@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { BiHomeAlt, BiClipboard, BiBell, BiUser, BiCalendar, BiBriefcaseAlt, BiCog, BiMoney, BiGroup } from "react-icons/bi"
+import { BiHomeAlt, BiClipboard, BiBell, BiUser, BiCalendar, BiBriefcaseAlt, BiCog, BiMoney, BiGroup, BiGridAlt } from "react-icons/bi"
+import { QuickActionsDrawer } from "@/components/admin/quick-actions-drawer"
 
 type NavRole = "company" | "technician" | "admin"
 
@@ -28,6 +29,7 @@ const navItems = {
     { id: "jobs", label: "Jobs", icon: BiClipboard, href: "/admin/requests" },
     { id: "team", label: "Team", icon: BiGroup, href: "/admin/technicians" },
     { id: "salary", label: "Salary", icon: BiMoney, href: "/admin/salary" },
+    { id: "actions", label: "Actions", icon: BiGridAlt, href: "#" },
     { id: "settings", label: "Settings", icon: BiCog, href: "/admin/settings" },
   ],
 }
@@ -39,6 +41,22 @@ export function BottomNav({ active, role }: BottomNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 h-[80px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-white/20 dark:border-white/5 flex items-center justify-around pb-5 pt-2 z-50 transition-all shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
       {items.map((item) => {
         const isActive = active === item.id
+
+        if (item.id === 'actions') {
+          return (
+            <QuickActionsDrawer key={item.id}>
+              <button
+                className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all duration-500 relative group`}
+              >
+                <div className={`relative p-2 rounded-xl transition-all duration-300 ${isActive ? "text-primary -translate-y-1" : "text-slate-400 group-hover:text-primary/70"}`}>
+                  <item.icon className="w-6 h-6" />
+                </div>
+                <span className={`text-[10px] font-bold tracking-wide mt-0.5 transition-all duration-300 ${isActive ? "text-primary opacity-100" : "text-slate-400 opacity-70 scale-90"}`}>{item.label}</span>
+              </button>
+            </QuickActionsDrawer>
+          )
+        }
+
         return (
           <Link
             key={item.id}

@@ -32,11 +32,22 @@ export default function CompanyRequestsPage() {
   }, [])
 
   const statusColors: Record<string, string> = {
-    "In Progress": "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    Active: "bg-green-500/10 text-green-600 border-green-500/20",
-    Completed: "bg-slate-500/10 text-slate-600 border-slate-500/20",
-    "New": "bg-purple-500/10 text-purple-600 border-purple-500/20",
-    "Assigned": "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+    "Requested": "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    "Reviewing": "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    "Team_Forming": "bg-orange-500/10 text-orange-600 border-orange-500/20",
+    "Invites_Sent": "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    "Team_Confirmed": "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+    "Dispatched": "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
+    "On_The_Way": "bg-teal-500/10 text-teal-600 border-teal-500/20",
+    "Arrived": "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    "Work_Started": "bg-green-500/10 text-green-600 border-green-500/20",
+    "In_Progress": "bg-blue-600/10 text-blue-700 border-blue-600/20",
+    "Work_Completed": "bg-green-600/10 text-green-700 border-green-600/20",
+    "Sign_Pending": "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    "Completed": "bg-slate-500/10 text-slate-600 border-slate-500/20",
+    "Invoiced": "bg-pink-500/10 text-pink-600 border-pink-500/20",
+    "Paid": "bg-emerald-600/10 text-emerald-700 border-emerald-600/20",
+    "Cancelled": "bg-red-500/10 text-red-600 border-red-500/20",
   }
 
   const priorityColors: Record<string, string> = {
@@ -127,15 +138,15 @@ export default function CompanyRequestsPage() {
                   className="glass-card p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-primary/50"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                      req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
-                        req.type === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.serviceType === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                      req.serviceType === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                        req.serviceType === 'HVAC' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
                           'bg-primary/10 text-primary'
                       }`}>
-                      {getIcon(req.type)}
+                      {getIcon(req.serviceType)}
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{req.type}</p>
+                      <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{req.serviceType}</p>
                       <p className="text-xs text-muted-foreground font-mono font-medium">{req.id}</p>
                     </div>
                   </div>

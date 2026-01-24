@@ -12,19 +12,43 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
   const [job, setJob] = useState<Job | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const shareLocation = async (manual = false) => {
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) reject(new Error("No Geolocation"));
+        navigator.geolocation.getCurrentPosition(resolve, reject);
+      });
+
+      await api.checkIn(id, {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        address: manual ? "Manual Update" : "Auto Check-in"
+      });
+
+      if (manual) toast.success("Location shared successfully");
+    } catch (e) {
+      console.error("Location error", e);
+      if (manual) toast.error("Could not share location");
+      // Fallback for auto
+      if (!manual) await api.checkIn(id, { lat: 12.9716, lng: 77.5946, address: "Location Unavailable" });
+    }
+  }
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.getJobById(id)
         if (res.job) {
-          setJob(res.job)
-          // Ensure job is marked as In Progress if not already
-          if (res.job.status === 'Pending' || res.job.status === 'Accepted') {
-            await api.checkIn(id, "Mock Location")
+          setJob(res.job as Job)
+          // Always try to sync location if job is active or about to be active
+          if (['Pending', 'Accepted', 'In Progress'].includes(res.job.status)) {
+            await shareLocation(false);
           }
         }
       } catch (error) {
         toast.error("Failed to load job details")
+        console.error(error)
       } finally {
         setLoading(false)
       }
@@ -62,14 +86,7 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
         <p className="text-sm text-green-600/80 dark:text-green-400/80 mt-1">You are currently checked in</p>
       </div>
 
-      {/* Location */}
-      <div className="p-4 rounded-lg bg-card border border-border mb-6">
-        <p className="text-xs text-muted-foreground mb-2">Location</p>
-        <p className="font-semibold mb-4">{job.location}</p>
-        <button className="w-full py-2 px-3 rounded-lg border border-border hover:bg-muted transition-colors text-sm font-medium">
-          Share Location
-        </button>
-      </div>
+
 
       {/* Supervisor */}
       <div className="p-4 rounded-lg bg-card border border-border mb-6">

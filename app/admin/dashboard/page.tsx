@@ -31,7 +31,7 @@ export default function AdminDashboard() {
 
         setStats({ pendingTechs, activeJobs, completedJobs, activeList })
       } catch (error) {
-        console.error("Failed to fetch admin stats")
+        console.error("Failed to fetch admin stats", error)
       }
     }
     fetchData()
@@ -43,14 +43,7 @@ export default function AdminDashboard() {
     { label: "Completed", value: stats.completedJobs.toString(), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10" },
   ]
 
-  const quickActions = [
-    { icon: Briefcase, label: "View Requests", path: "/admin/requests", color: "text-purple-500" },
-    { icon: Users, label: "Technicians", path: "/admin/technicians", color: "text-indigo-500" },
-    { icon: UserPlus, label: "Onboarding", path: "/admin/onboarding", color: "text-blue-500" },
-    { icon: Map, label: "Live Map", path: "/admin/location", color: "text-orange-500" },
-    { icon: Calendar, label: "Daily Select", path: "/admin/daily-select", color: "text-pink-500" },
-    { icon: DollarSign, label: "Salary", path: "/admin/salary", color: "text-emerald-500" },
-  ]
+
 
   return (
     <div className="min-h-screen pb-32">
@@ -103,24 +96,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Quick Actions */}
-        <section>
-          <h2 className="text-lg font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {quickActions.map((action, idx) => (
-              <button
-                key={idx}
-                onClick={() => action.path && router.push(action.path)}
-                className="group p-4 rounded-xl glass-card border border-white/20 hover:border-primary/30 hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 active:scale-95"
-              >
-                <div className={`p-3 rounded-full bg-muted group-hover:bg-white dark:group-hover:bg-card shadow-inner group-hover:shadow-sm transition-all ${action.color}`}>
-                  <action.icon className="w-6 h-6" strokeWidth={1.5} />
-                </div>
-                <span className="text-xs font-semibold text-center text-foreground group-hover:text-primary transition-colors">{action.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+
 
         {/* Active Jobs */}
         <section>

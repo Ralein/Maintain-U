@@ -37,10 +37,20 @@ export default function AdminRequestsPage() {
       try {
         const res = await api.getRequests()
         if (res.requests) {
-          const newRequests = res.requests.filter((r: any) => r.status === "New") as Request[]
-          const assignedRequests = res.requests.filter((r: any) => r.status === "Assigned") as Request[]
-          const inProgressRequests = res.requests.filter((r: any) => r.status === "In Progress") as Request[]
-          const completedRequests = res.requests.filter((r: any) => r.status === "Completed") as Request[]
+          // Map new statuses to tabs
+          const newRequests = res.requests.filter((r: any) => ["Requested", "Reviewing"].includes(r.status)) as Request[]
+
+          const assignedRequests = res.requests.filter((r: any) =>
+            ["Team_Forming", "Invites_Sent", "Team_Confirmed", "Dispatched"].includes(r.status)
+          ) as Request[]
+
+          const inProgressRequests = res.requests.filter((r: any) =>
+            ["On_The_Way", "Arrived", "Work_Started", "In_Progress", "Work_Completed", "Sign_Pending"].includes(r.status)
+          ) as Request[]
+
+          const completedRequests = res.requests.filter((r: any) =>
+            ["Completed", "Invoiced", "Paid"].includes(r.status)
+          ) as Request[]
 
           setRequests({
             new: newRequests,
@@ -61,9 +71,9 @@ export default function AdminRequestsPage() {
   const tabs: Array<"new" | "assigned" | "in-progress" | "completed"> = ["new", "assigned", "in-progress", "completed"]
 
   const currentList = requests[activeTab].filter(r =>
-    r.companyName?.toLowerCase().includes(search.toLowerCase()) ||
+    (r.companyName || "").toLowerCase().includes(search.toLowerCase()) ||
     r.id.toLowerCase().includes(search.toLowerCase()) ||
-    r.type.toLowerCase().includes(search.toLowerCase())
+    (r.serviceType || "").toLowerCase().includes(search.toLowerCase())
   )
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
@@ -198,11 +208,11 @@ export default function AdminRequestsPage() {
                   <div className="grid grid-cols-2 gap-y-2 text-xs text-muted-foreground pt-1 px-1">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-primary/60" />
-                      <span>{req.type}</span>
+                      <span>{req.serviceType}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 text-primary/60" />
-                      <span>{req.date}</span>
+                      <span>{req.preferredDate || req.date}</span>
                     </div>
                   </div>
 

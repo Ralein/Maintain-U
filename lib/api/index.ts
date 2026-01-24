@@ -23,11 +23,17 @@ export interface Request {
   id: string
   companyId: string
   companyName: string
-  type: string
-  priority: "Normal" | "Urgent" | "Emergency" | string
+  serviceType: string
+  priority: string
   description: string
-  status: "New" | "Assigned" | "In Progress" | "Completed" | "Cancelled" | string
-  date: string
+  status: string
+  preferredDate?: string
+  timeSlot?: string
+  date?: string // Keep for legacy/compat if needed, or remove? Better to map `preferredDate` to `date` in frontend if logic needs it, or update frontend. I updated frontend to use `date` property in some places?
+  // Frontend `NewRequestPage` uses `date`. `actions.ts` maps `data.date` -> `preferredDate`.
+  // `getRequestsAction` returns DB columns. So it will have `preferredDate`.
+  // So I should add `preferredDate`.
+  companyLocation?: string
   createdAt: number | Date
   [key: string]: any
 }
@@ -261,10 +267,18 @@ export const api = {
     return { success: true }
   },
 
+  async markAttendance(status: "present" | "leave") {
+    const { markAttendanceAction } = await import("@/lib/actions")
+    return markAttendanceAction(status)
+  },
+
+  async getTechnicianAttendance(month?: string) {
+    const { getTechnicianAttendanceAction } = await import("@/lib/actions")
+    return getTechnicianAttendanceAction(month)
+  },
+
   async getSalaryData(period: string) {
-    await delay(DELAY_MS)
-    return {
-      technicians: [{ name: "Raj Kumar", days: 24, rate: 800, net: 19200 }],
-    }
+    const { getSalaryDataAction } = await import("@/lib/actions")
+    return getSalaryDataAction(period)
   },
 }
