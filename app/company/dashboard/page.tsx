@@ -110,15 +110,15 @@ export default function CompanyDashboard() {
                     className="group glass-card p-4 rounded-xl hover:border-primary/50 transition-all cursor-pointer flex items-center justify-between"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.type === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
-                        req.type === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
-                          req.type === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.serviceType === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                        req.serviceType === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                          req.serviceType === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
                             'bg-primary/10 text-primary'
                         }`}>
-                        <span className="font-bold text-lg">{req.type.charAt(0)}</span>
+                        <span className="font-bold text-lg">{(req.serviceType || "General").charAt(0)}</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{req.type}</p>
+                        <p className="font-semibold text-foreground">{req.serviceType || "General Service"}</p>
                         <p className="text-xs text-muted-foreground font-mono font-medium">{req.id}</p>
                       </div>
                     </div>

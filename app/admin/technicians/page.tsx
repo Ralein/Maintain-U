@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Search, User, Check, X, Star } from "lucide-react"
+import { Search, User, Check, X, Star, MapPin } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -137,11 +137,19 @@ export default function AdminTechniciansPage() {
                       <User className="text-primary w-6 h-6" />
                     </div>
                     <div>
-                      <p className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">{tech.name}</p>
+                      <p className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">
+                        {tech.name === "New User" && tech.phone ? `New User (${tech.phone})` : tech.name}
+                      </p>
                       <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
                         {tech.skill || "General Technician"}
                       </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground font-medium">
+                          {tech.locationName === "Unknown Location" ? "Not Checked In" : tech.locationName}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   <span

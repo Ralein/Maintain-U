@@ -82,7 +82,7 @@ export default function AdminRequestDetailsPage({ params }: { params: Promise<{ 
                     </div>
                     <div className="p-4 rounded-lg bg-card border border-border">
                         <p className="text-xs text-muted-foreground mb-1">Service Type</p>
-                        <p className="font-semibold">{request.type}</p>
+                        <p className="font-semibold">{request.serviceType || "General"}</p>
                     </div>
                     <div className="p-4 rounded-lg bg-card border border-border">
                         <p className="text-xs text-muted-foreground mb-1">Description</p>
@@ -90,7 +90,7 @@ export default function AdminRequestDetailsPage({ params }: { params: Promise<{ 
                     </div>
                     <div className="p-4 rounded-lg bg-card border border-border">
                         <p className="text-xs text-muted-foreground mb-1">Submitted Date</p>
-                        <p className="font-semibold">{request.date}</p>
+                        <p className="font-semibold">{request.preferredDate || (request.createdAt ? new Date(request.createdAt).toLocaleDateString() : "Unknown")}</p>
                     </div>
                     {request.timeSlot && (
                         <div className="p-4 rounded-lg bg-card border border-border">

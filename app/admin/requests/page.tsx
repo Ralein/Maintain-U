@@ -208,11 +208,11 @@ export default function AdminRequestsPage() {
                   <div className="grid grid-cols-2 gap-y-2 text-xs text-muted-foreground pt-1 px-1">
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-primary/60" />
-                      <span>{req.serviceType}</span>
+                      <span>{req.serviceType || "General"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 text-primary/60" />
-                      <span>{req.preferredDate || req.date}</span>
+                      <span>{req.preferredDate || (req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "Unknown")}</span>
                     </div>
                   </div>
 
@@ -221,7 +221,12 @@ export default function AdminRequestsPage() {
                       View Details <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                     {activeTab === "new" && (
-                      <button className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/admin/jobs/${req.id}/assign`)
+                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
                         Assign Team
                       </button>
                     )}

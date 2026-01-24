@@ -46,7 +46,37 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
   }
 
   const steps = ["New", "Assigned", "In Progress", "Completed"]
-  const currentStepIndex = steps.indexOf(request.status)
+
+  // Map backend status to timeline steps
+  const getStepIndex = (status: string) => {
+    switch (status) {
+      case "Requested":
+      case "Reviewing":
+      case "New":
+        return 0;
+      case "Team_Forming":
+      case "Invites_Sent":
+      case "Team_Confirmed":
+      case "Dispatched":
+      case "Assigned":
+        return 1;
+      case "On_The_Way":
+      case "Arrived":
+      case "Work_Started":
+      case "In_Progress":
+      case "Sign_Pending":
+      case "Work_Completed":
+        return 2;
+      case "Completed":
+      case "Invoiced":
+      case "Paid":
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  const currentStepIndex = getStepIndex(request.status)
   const isCancelled = request.status === "Cancelled"
 
   return (
@@ -73,8 +103,8 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
               {request.type} Service
             </span>
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${request.priority === 'Urgent' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                request.priority === 'Emergency' ? 'bg-red-600/10 text-red-600 border-red-600/20' :
-                  'bg-blue-500/10 text-blue-500 border-blue-500/20'
+              request.priority === 'Emergency' ? 'bg-red-600/10 text-red-600 border-red-600/20' :
+                'bg-blue-500/10 text-blue-500 border-blue-500/20'
               }`}>
               {request.priority}
             </span>
@@ -93,14 +123,14 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
             Request Timeline
           </h2>
 
-          <div className="relative pl-4 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-muted/50">
+          <div className="relative pl-8 space-y-8 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-muted/50">
             {steps.map((step, idx) => {
               const isCompleted = currentStepIndex >= idx
               const isCurrent = currentStepIndex === idx
               return (
                 <div key={step} className="relative flex items-center gap-4 group">
                   <div className={`
-                                 absolute left-[-5px] w-4 h-4 rounded-full border-2 transition-all duration-500 z-10
+                                 absolute left-[-21px] w-4 h-4 rounded-full border-2 transition-all duration-500 z-10
                                  ${isCompleted || isCurrent ? 'bg-primary border-primary shadow-[0_0_10px_rgba(var(--primary),0.4)]' : 'bg-background border-muted group-hover:border-primary/50'}
                              `}>
                     {isCompleted && <CheckCircle2 className="w-full h-full text-primary-foreground p-[1px]" />}

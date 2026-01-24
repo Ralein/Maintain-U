@@ -101,27 +101,30 @@ export default function AdminDashboard() {
         {/* Active Jobs */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold">Active Jobs (Today)</h2>
-            <button className="text-xs font-semibold text-primary uppercase tracking-wide">View All</button>
+            <h2 className="text-lg font-bold">Recent Activity</h2>
+            <button onClick={() => router.push('/admin/requests')} className="text-xs font-semibold text-primary uppercase tracking-wide hover:underline">View All</button>
           </div>
           <div className="space-y-3">
             {stats.activeList.length === 0 ? (
               <div className="glass-card p-8 rounded-xl text-center border-dashed">
-                <p className="text-muted-foreground text-sm">No active jobs</p>
+                <p className="text-muted-foreground text-sm">No recent activity</p>
               </div>
             ) : (
               stats.activeList.map((job) => (
-                <div key={job.id} className="glass-card p-4 rounded-xl flex items-center justify-between border-white/10">
+                <div key={job.id} onClick={() => router.push(`/admin/requests/${job.requestId}`)} className="glass-card p-4 rounded-xl flex items-center justify-between border-white/10 cursor-pointer hover:border-primary/50 transition-all">
                   <div>
                     <p className="font-semibold text-foreground">{job.company}</p>
                     <p className="text-xs text-muted-foreground">{job.service}</p>
                   </div>
-                  <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg ${job.status === 'Completed' ? 'bg-green-500/10 text-green-600' :
-                    job.status === 'In Progress' ? 'bg-orange-500/10 text-orange-600' :
-                      'bg-blue-500/10 text-blue-600'
-                    }`}>
-                    {job.status}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg ${job.status === 'Completed' ? 'bg-green-500/10 text-green-600' :
+                      job.status === 'In Progress' ? 'bg-orange-500/10 text-orange-600' :
+                        'bg-blue-500/10 text-blue-600'
+                      }`}>
+                      {job.status}
+                    </span>
+                    <button className="text-xs font-semibold text-primary hover:text-primary/80">View</button>
+                  </div>
                 </div>
               ))
             )}

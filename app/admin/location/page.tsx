@@ -132,7 +132,7 @@ export default function AdminLocationPage() {
                     <LocationMap techs={activeTechs} mapStyleUrl={mapStyles[currentStyle].url} />
 
                     {/* Floating Legend */}
-                    <div className="absolute bottom-6 left-6 right-6 p-4 glass-card rounded-2xl flex items-center justify-around text-xs font-medium z-[400] bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border border-border/10">
+                    <div className="absolute bottom-6 left-6 right-6 p-4 glass-card rounded-2xl flex items-center justify-around text-xs font-medium z-30 bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg border border-border/10">
                         <div className="flex items-center gap-2">
                             <span className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
                             Team

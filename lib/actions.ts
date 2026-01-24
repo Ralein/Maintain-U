@@ -251,7 +251,16 @@ export async function getCompanyRequestsAction() {
         .where(eq(requests.companyId, companyProfile.id))
         .orderBy(desc(requests.createdAt));
 
-    return { requests: compRequests }
+    const enrichedRequests = compRequests.map(r => ({
+        ...r,
+        companyName: companyProfile.companyName,
+        companyLocation: companyProfile.address || undefined,
+        serviceType: r.serviceType || "General",
+        preferredDate: r.preferredDate || undefined,
+        timeSlot: r.timeSlot || undefined
+    }))
+
+    return { requests: enrichedRequests }
 }
 
 export async function getTechniciansAction() {
@@ -291,10 +300,12 @@ export async function getTechniciansAction() {
             else if (user.name?.includes("Sara")) location = { lat: 12.9352, lng: 77.6245, address: "Koramangala, Bangalore" }
         }
 
+        const name = (user.name && user.name !== "New User") ? user.name : user.phone || "Unknown";
+
         return {
             id: user.id, // Use user ID for admin actions usually
             techId: tech?.id,
-            name: user.name || "Unknown",
+            name: name,
             skill: tech?.primarySkill || "General",
             rating: tech?.rating || "0",
             status: (tech?.status || user.status) === 'active' ? 'Available' : (tech?.status || user.status),
@@ -1025,11 +1036,30 @@ export async function getSalaryDataAction(period: string) {
 }
 
 export async function getRequestByIdAction(id: string) {
-    // Find request
-    const request = await db.query.requests.findFirst({
-        where: eq(requests.id, id)
+    const result = await db.select({
+        request: requests,
+        company: companies
     })
-    return { request }
+        .from(requests)
+        .leftJoin(companies, eq(requests.companyId, companies.id))
+        .where(eq(requests.id, id))
+        .limit(1)
+
+    if (result.length === 0) return { request: null }
+
+    const { request, company } = result[0];
+
+    return {
+        request: {
+            ...request,
+            // fix: ensure null values become undefined to match Request interface
+            preferredDate: request.preferredDate || undefined,
+            timeSlot: request.timeSlot || undefined,
+            serviceType: request.serviceType || "General",
+            companyName: company?.companyName || "Unknown Company",
+            companyLocation: company?.address || undefined,
+        }
+    }
 }
 
 export async function deleteRequestAction(id: string) {
@@ -1071,14 +1101,42 @@ export async function assignTeamAction(requestId: string, techIds: string[], lea
         // BUT `jobs` table `technicianId` references `technicians.id`.
         // So we need to resolve User IDs to Technician IDs.
 
-        const techs = await db.select().from(technicians)
-            .where(or(...techIds.map(uid => eq(technicians.userId, uid))));
+        // Resolve User IDs to Technician IDs (and auto-create profiles if missing)
+        const resolvedJobValues: any[] = [];
+        for (const uid of techIds) {
+            let tech = await db.query.technicians.findFirst({
+                where: eq(technicians.userId, uid)
+            })
 
-        const resolvedJobValues = techs.map(t => ({
-            requestId,
-            leadTechnicianId: t.id, // Set as lead/assigned tech
-            status: 'Team_Confirmed' as const,
-        }));
+            if (!tech) {
+                // Auto-create tech profile for this user
+                // Get user phone for better naming if needed, but we only have uid here.
+                // Best to query user first? Or just let it be. 
+                // Wait, we need to ensure the USER record has a good name too if it was "New User"?
+                // Let's at least get the user details to set a name if we can.
+                const user = await db.query.users.findFirst({ where: eq(users.id, uid) });
+
+                // If user name is New User, update it to Phone
+                if (user && (user.name === "New User" || !user.name)) {
+                    await db.update(users).set({ name: user.phone }).where(eq(users.id, uid));
+                }
+
+                [tech] = await db.insert(technicians).values({
+                    userId: uid,
+                    status: 'active',
+                    primarySkill: 'General',
+                    skills: ['General'],
+                    experience: 0,
+                    dailyRate: 800
+                }).returning();
+            }
+
+            resolvedJobValues.push({
+                requestId,
+                leadTechnicianId: tech.id,
+                status: 'Team_Confirmed',
+            });
+        }
 
         if (resolvedJobValues.length > 0) {
             await db.insert(jobs).values(resolvedJobValues);

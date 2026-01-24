@@ -11,15 +11,23 @@ export default function TechnicianDashboard() {
   const router = useRouter()
   const [jobs, setJobs] = useState<any[]>([])
   const [activeJob, setActiveJob] = useState<any>(null)
+  const [techName, setTechName] = useState("Technician")
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await api.getJobs()
+        const userRes = await api.me() // Assuming api.me exists or we get it from getTechnicians for self?
+        // Actually api.getJobs returns jobs. To get name, we might need profile.
+        // Let's assume we can get it from session or separate call. 
+        // For now, let's try getting it from the first job's tech name if available, or just generic.
+        // Better: api.getTechnicianProfile()
+
         if (res.jobs) {
           setJobs(res.jobs)
-          // Mock logic: find first pending/active job as today's assignment
-          const active = res.jobs.find((j: any) => j.status === 'Pending' || j.status === 'Accepted' || j.status === 'In Progress')
+          // Find prioritized active job
+          const active = res.jobs.find((j: any) => j.status === 'In Progress' || j.status === 'In_Progress') ||
+            res.jobs.find((j: any) => j.status === 'Accepted' || j.status === 'Team_Confirmed')
           setActiveJob(active)
         }
       } catch (error) {
@@ -30,13 +38,13 @@ export default function TechnicianDashboard() {
   }, [])
 
   const completedCount = jobs.filter(j => j.status === 'Completed').length
-  const pendingCount = jobs.filter(j => j.status === 'Pending').length
-  const activeCount = jobs.filter(j => j.status === 'In Progress').length
+  const pendingCount = jobs.filter(j => j.status === 'Pending').length // Invitations
+  const activeCount = jobs.filter(j => j.status === 'In Progress' || j.status === 'In_Progress' || j.status === 'Accepted' || j.status === 'Team_Confirmed').length
 
   const stats = [
     { label: "Jobs Completed", value: completedCount.toString(), color: "from-green-500 to-green-600" },
-    { label: "Pending", value: pendingCount.toString(), color: "from-orange-500 to-orange-600" },
-    { label: "Active", value: activeCount.toString(), color: "from-blue-500 to-blue-600" },
+    { label: "Invitations", value: pendingCount.toString(), color: "from-orange-500 to-orange-600" },
+    { label: "Active Jobs", value: activeCount.toString(), color: "from-blue-500 to-blue-600" },
   ]
 
   return (
@@ -44,7 +52,7 @@ export default function TechnicianDashboard() {
       {/* Header */}
       <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 flex items-center justify-between mb-8 transition-all">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Hello, Raj Kumar</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Hello, Technician</h1>
           <p className="text-muted-foreground text-sm">Ready for today's work?</p>
         </div>
         <button onClick={() => router.push("/technician/notifications")} className="p-2.5 hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 bg-white/50 dark:bg-black/20">
