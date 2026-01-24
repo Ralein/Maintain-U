@@ -1,7 +1,7 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { AlertCircle, Briefcase, Users, Calendar, DollarSign, Clock, CheckCircle, Bell, UserPlus, Map } from "lucide-react"
+import { AlertCircle, Briefcase, Users, Calendar, DollarSign, Clock, CheckCircle, Bell, UserPlus, Map, Zap, Wrench, Droplets } from "lucide-react"
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -38,12 +38,18 @@ export default function AdminDashboard() {
   }, [])
 
   const statCards = [
-    { label: "Pending Approvals", value: stats.pendingTechs.toString(), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10" },
-    { label: "Active Jobs", value: stats.activeJobs.toString(), icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Completed", value: stats.completedJobs.toString(), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10" },
+    { label: "Pending", value: stats.pendingTechs.toString(), icon: AlertCircle, color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/20" },
+    { label: "Active Jobs", value: stats.activeJobs.toString(), icon: Clock, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+    { label: "Completed", value: stats.completedJobs.toString(), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/20" },
   ]
 
-
+  const getServiceIcon = (type: string) => {
+    switch (type) {
+      case 'Electrical': return <Zap className="w-5 h-5" />;
+      case 'Plumbing': return <Droplets className="w-5 h-5" />;
+      default: return <Wrench className="w-5 h-5" />;
+    }
+  }
 
   return (
     <div className="min-h-screen pb-32">
@@ -66,16 +72,19 @@ export default function AdminDashboard() {
         {stats.pendingTechs > 0 && (
           <div
             onClick={() => router.push('/admin/technicians')}
-            className="group relative overflow-hidden p-4 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/40 border border-red-200 dark:border-red-900 cursor-pointer shadow-sm hover:shadow-md transition-all"
+            className="group relative overflow-hidden p-4 rounded-xl cursor-pointer shadow-sm hover:shadow-md transition-all glass-card border-red-500/30"
           >
-            <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-full blur-xl -mr-8 -mt-8" />
-            <div className="flex items-start gap-4 relative">
-              <div className="p-2 rounded-lg bg-white/80 dark:bg-red-900/20 shadow-sm text-red-600 dark:text-red-400">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl -mr-10 -mt-10 transition-all group-hover:bg-red-500/20" />
+            <div className="flex items-start gap-4 relative z-10">
+              <div className="p-2.5 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 shadow-sm">
                 <AlertCircle className="w-5 h-5" strokeWidth={2} />
               </div>
-              <div>
-                <p className="text-sm font-bold text-red-900 dark:text-red-200">Action Required</p>
-                <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">{stats.pendingTechs} pending technician approvals</p>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-foreground">Action Required</p>
+                <p className="text-xs text-muted-foreground mt-0.5"><span className="font-semibold text-red-600 dark:text-red-400">{stats.pendingTechs} pending technician(s)</span> await your approval.</p>
+              </div>
+              <div className="flex items-center justify-center h-full my-auto">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
               </div>
             </div>
           </div>
@@ -85,18 +94,17 @@ export default function AdminDashboard() {
         <section>
           <div className="grid grid-cols-3 gap-3">
             {statCards.map((stat, idx) => (
-              <div key={idx} className="glass-card p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                <div className={`p-2.5 rounded-full ${stat.bg} ${stat.color} mb-2`}>
-                  <stat.icon className="w-5 h-5" strokeWidth={2} />
+              <div key={idx} className={`glass-card p-4 rounded-2xl flex flex-col items-center text-center border ${stat.border} relative overflow-hidden`}>
+                <div className={`absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl -mr-8 -mt-8 ${stat.bg}`} />
+                <div className={`relative p-2.5 rounded-full ${stat.bg} ${stat.color} mb-3`}>
+                  <stat.icon className="w-6 h-6" />
                 </div>
-                <p className="text-xl font-bold">{stat.value}</p>
-                <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{stat.label}</p>
+                <p className="text-2xl font-bold tracking-tight relative z-10">{stat.value}</p>
+                <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1 relative z-10">{stat.label}</p>
               </div>
             ))}
           </div>
         </section>
-
-
 
         {/* Active Jobs */}
         <section>
@@ -112,9 +120,18 @@ export default function AdminDashboard() {
             ) : (
               stats.activeList.map((job) => (
                 <div key={job.id} onClick={() => router.push(`/admin/requests/${job.requestId}`)} className="glass-card p-4 rounded-xl flex items-center justify-between border-white/10 cursor-pointer hover:border-primary/50 transition-all">
-                  <div>
-                    <p className="font-semibold text-foreground">{job.company}</p>
-                    <p className="text-xs text-muted-foreground">{job.service}</p>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm ${job.service === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                      job.service === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
+                        job.service === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
+                          'bg-primary/10 text-primary'
+                      }`}>
+                      {getServiceIcon(job.service)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">{job.company}</p>
+                      <p className="text-xs text-muted-foreground">{job.service}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg ${job.status === 'Completed' ? 'bg-green-500/10 text-green-600' :
@@ -123,7 +140,6 @@ export default function AdminDashboard() {
                       }`}>
                       {job.status}
                     </span>
-                    <button className="text-xs font-semibold text-primary hover:text-primary/80">View</button>
                   </div>
                 </div>
               ))

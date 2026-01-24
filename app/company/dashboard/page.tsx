@@ -2,7 +2,7 @@
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { BiTrendingUp, BiTime, BiCheckCircle, BiBell, BiLoaderAlt, BiPlus } from "react-icons/bi"
+import { TrendingUp, Clock, CheckCircle, Bell, Loader2, Plus, Zap, Wrench, Droplets } from "lucide-react"
 import { useEffect, useState } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -42,10 +42,18 @@ export default function CompanyDashboard() {
   }, [])
 
   const statCards = [
-    { label: "Active", value: stats.active.toString(), icon: BiTrendingUp, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10" },
-    { label: "In Progress", value: stats.inProgress.toString(), icon: BiTime, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10" },
-    { label: "Completed", value: stats.completed.toString(), icon: BiCheckCircle, color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10 dark:bg-green-400/10" },
+    { label: "Active", value: stats.active.toString(), icon: TrendingUp, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 dark:bg-blue-400/10", border: "border-blue-200 dark:border-blue-900" },
+    { label: "In Progress", value: stats.inProgress.toString(), icon: Clock, color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10 dark:bg-orange-400/10", border: "border-orange-200 dark:border-orange-900" },
+    { label: "Completed", value: stats.completed.toString(), icon: CheckCircle, color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10 dark:bg-green-400/10", border: "border-green-200 dark:border-green-900" },
   ]
+
+  const getServiceIcon = (type: string) => {
+    switch (type) {
+      case 'Electrical': return <Zap className="w-6 h-6" />;
+      case 'Plumbing': return <Droplets className="w-6 h-6" />;
+      default: return <Wrench className="w-6 h-6" />;
+    }
+  }
 
   return (
     <div className="min-h-screen pb-32">
@@ -58,14 +66,14 @@ export default function CompanyDashboard() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <button onClick={() => router.push("/company/notifications")} className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm">
-            <BiBell className="w-5 h-5" />
+            <Bell className="w-5 h-5" />
           </button>
         </div>
       </header>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <BiLoaderAlt className="w-8 h-8 animate-spin text-primary" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       ) : (
         <main className="px-6 py-6 space-y-8">
@@ -73,12 +81,13 @@ export default function CompanyDashboard() {
           <section>
             <div className="grid grid-cols-3 gap-3">
               {statCards.map((stat, idx) => (
-                <div key={idx} className="glass-card p-4 rounded-2xl flex flex-col items-center text-center">
-                  <div className={`p-2.5 rounded-full ${stat.bg} ${stat.color} mb-3`}>
+                <div key={idx} className={`glass-card p-4 rounded-2xl flex flex-col items-center text-center border ${stat.border} relative overflow-hidden`}>
+                  <div className={`absolute top-0 right-0 w-16 h-16 rounded-full blur-2xl -mr-8 -mt-8 ${stat.bg}`} />
+                  <div className={`relative p-2.5 rounded-full ${stat.bg} ${stat.color} mb-3`}>
                     <stat.icon className="w-6 h-6" />
                   </div>
-                  <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">{stat.label}</p>
+                  <p className="text-2xl font-bold tracking-tight relative z-10">{stat.value}</p>
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1 relative z-10">{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -110,12 +119,12 @@ export default function CompanyDashboard() {
                     className="group glass-card p-4 rounded-xl hover:border-primary/50 transition-all cursor-pointer flex items-center justify-between"
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-inner ${req.serviceType === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${req.serviceType === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' :
                         req.serviceType === 'Mechanical' ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' :
                           req.serviceType === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400' :
                             'bg-primary/10 text-primary'
                         }`}>
-                        <span className="font-bold text-lg">{(req.serviceType || "General").charAt(0)}</span>
+                        {getServiceIcon(req.serviceType)}
                       </div>
                       <div>
                         <p className="font-semibold text-foreground">{req.serviceType || "General Service"}</p>
@@ -147,8 +156,8 @@ export default function CompanyDashboard() {
       {/* FAB */}
       <button
         onClick={() => router.push("/company/requests/new")}
-        className="fixed bottom-24 right-5 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center z-50">
-        <BiPlus className="w-8 h-8" />
+        className="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 hover:shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center z-50 ring-2 ring-white/20">
+        <Plus className="w-8 h-8" />
       </button>
 
       <BottomNav active="home" role="company" />

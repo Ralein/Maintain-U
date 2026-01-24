@@ -12,10 +12,13 @@ import { api } from "@/lib/api"
 const LocationMap = dynamic(() => import('@/components/admin/LocationMap'), {
     ssr: false,
     loading: () => (
-        <div className="w-full h-full min-h-[500px] bg-muted/10 animate-pulse flex items-center justify-center rounded-2xl border border-dashed border-border">
-            <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <span className="text-xs text-muted-foreground font-medium">Loading Map...</span>
+        <div className="w-full h-full min-h-[500px] bg-muted/10 flex items-center justify-center rounded-3xl border border-border/50 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 bg-white/50 dark:bg-black/50 p-6 rounded-2xl shadow-xl backdrop-blur-md border border-white/20">
+                <div className="relative">
+                    <div className="w-12 h-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+                    <MapPin className="w-5 h-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <span className="text-sm font-bold tracking-wide text-foreground/80">Loading Map...</span>
             </div>
         </div>
     )

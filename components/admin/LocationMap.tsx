@@ -37,6 +37,16 @@ interface LocationMapProps {
 }
 
 export default function LocationMap({ techs, mapStyleUrl }: LocationMapProps) {
+    const [isMounted, setIsMounted] = useState(false)
+    const [isInitializing, setIsInitializing] = useState(true)
+
+    useEffect(() => {
+        setIsMounted(true)
+        // Simulate initialization for smooth UX (prevents tile flash)
+        const timer = setTimeout(() => setIsInitializing(false), 1500)
+        return () => clearTimeout(timer)
+    }, [])
+
     // Logic to Group Techs
     const groupedLocations = techs.reduce((acc, tech) => {
         const key = `${tech.lat},${tech.lng}`
@@ -45,13 +55,37 @@ export default function LocationMap({ techs, mapStyleUrl }: LocationMapProps) {
         return acc
     }, {} as Record<string, TechLocation[]>)
 
+    if (!isMounted) {
+        return (
+            <div className="w-full h-full min-h-[500px] bg-muted/10 flex items-center justify-center rounded-3xl border border-border/50 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-3 bg-white/50 dark:bg-black/50 p-6 rounded-2xl shadow-xl backdrop-blur-md border border-white/20">
+                    <div className="relative">
+                        <div className="w-12 h-12 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+                        <MapPin className="w-5 h-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    </div>
+                    <span className="text-sm font-bold tracking-wide text-foreground/80">Initializing Map...</span>
+                </div>
+            </div>
+        )
+    }
+
     return (
-        <div className="w-full h-full min-h-[500px] relative z-0">
+        <div className="w-full h-full min-h-[500px] relative z-0 group">
+            {/* Initialization Overlay */}
+            <div className={`absolute inset-0 z-[1000] bg-background/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-700 ${isInitializing ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                <div className="flex flex-col items-center gap-3 bg-white/80 dark:bg-black/80 p-6 rounded-2xl shadow-2xl border border-white/20 scale-100 transition-transform duration-500">
+                    <div className="relative">
+                        <div className="w-10 h-10 rounded-full border-b-2 border-primary animate-spin"></div>
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-widest text-primary animate-pulse">Locating Assets...</span>
+                </div>
+            </div>
+
             <MapContainer
                 center={[12.9716, 77.5946] as any}
                 zoom={12}
                 style={{ height: '100%', width: '100%', minHeight: '500px' }}
-                className="z-0"
+                className="z-0 rounded-3xl"
             >
                 <TileLayer
                     url={mapStyleUrl}

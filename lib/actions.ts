@@ -251,13 +251,25 @@ export async function getCompanyRequestsAction() {
         .where(eq(requests.companyId, companyProfile.id))
         .orderBy(desc(requests.createdAt));
 
-    const enrichedRequests = compRequests.map(r => ({
-        ...r,
-        companyName: companyProfile.companyName,
-        companyLocation: companyProfile.address || undefined,
-        serviceType: r.serviceType || "General",
-        preferredDate: r.preferredDate || undefined,
-        timeSlot: r.timeSlot || undefined
+    const enrichedRequests = await Promise.all(compRequests.map(async (r) => {
+        // Check for active jobs
+        const associatedJobs = await db.select().from(jobs).where(eq(jobs.requestId, r.id));
+        let effectiveStatus = r.status;
+        const hasActiveJob = associatedJobs.some(j => j.status === 'In_Progress');
+
+        if (hasActiveJob && r.status !== 'Completed' && r.status !== 'Cancelled') {
+            effectiveStatus = 'In_Progress';
+        }
+
+        return {
+            ...r,
+            status: effectiveStatus,
+            companyName: companyProfile.companyName,
+            companyLocation: companyProfile.address || undefined,
+            serviceType: r.serviceType || "General",
+            preferredDate: r.preferredDate || undefined,
+            timeSlot: r.timeSlot || undefined
+        }
     }))
 
     return { requests: enrichedRequests }
@@ -1049,9 +1061,20 @@ export async function getRequestByIdAction(id: string) {
 
     const { request, company } = result[0];
 
+    // Fetch associated jobs to determine effective status
+    const associatedJobs = await db.select().from(jobs).where(eq(jobs.requestId, id));
+    let effectiveStatus = request.status;
+
+    // If any job is In_Progress (and Request is not Completed/Cancelled), show In_Progress
+    const hasActiveJob = associatedJobs.some(j => j.status === 'In_Progress');
+    if (hasActiveJob && request.status !== 'Completed' && request.status !== 'Cancelled') {
+        effectiveStatus = 'In_Progress';
+    }
+
     return {
         request: {
             ...request,
+            status: effectiveStatus,
             // fix: ensure null values become undefined to match Request interface
             preferredDate: request.preferredDate || undefined,
             timeSlot: request.timeSlot || undefined,
@@ -1256,6 +1279,13 @@ export async function checkInAction(jobId: string, location: any) {
             .set({ status: "In_Progress", startedAt: new Date() })
             .where(eq(jobs.id, jobId));
 
+        // Sync Request Status to In_Progress
+        if (job.requestId) {
+            await db.update(requests)
+                .set({ status: "In_Progress" })
+                .where(eq(requests.id, job.requestId));
+        }
+
         return { success: true }
     } catch (e: any) {
         console.error("Check-in error:", e)
@@ -1314,6 +1344,22 @@ export async function completeJobAction(jobId: string, signature: string) {
                 await db.update(attendance)
                     .set({ checkOutTime: new Date() })
                     .where(eq(attendance.id, openAttendance.id));
+            }
+        }
+
+        // Check if all jobs for this request are completed
+        const jobRecord = await db.query.jobs.findFirst({
+            where: eq(jobs.id, jobId)
+        })
+
+        if (jobRecord && jobRecord.requestId) {
+            const allJobs = await db.select().from(jobs).where(eq(jobs.requestId, jobRecord.requestId))
+            const reallyAllCompleted = allJobs.every(j => j.status === 'Completed')
+
+            if (reallyAllCompleted) {
+                await db.update(requests)
+                    .set({ status: "Completed" })
+                    .where(eq(requests.id, jobRecord.requestId));
             }
         }
 
