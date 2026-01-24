@@ -36,14 +36,33 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
   }
 
   useEffect(() => {
+    let watchId: number | null = null;
+
     const fetchData = async () => {
       try {
         const res = await api.getJobById(id)
         if (res.job) {
           setJob(res.job as Job)
-          // Always try to sync location if job is active or about to be active
-          if (['Pending', 'Accepted', 'In Progress'].includes(res.job.status)) {
+
+          // Trigger initial check-in/location sync
+          if (['Pending', 'Accepted', 'In Progress', 'In_Progress'].includes(res.job.status)) {
             await shareLocation(false);
+          }
+
+          // Set up continuous tracking if job is active
+          if (typeof window !== "undefined" && navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(
+              async (position) => {
+                await api.checkIn(id, {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                  accuracy: position.coords.accuracy,
+                  address: "Ongoing Activity"
+                });
+              },
+              (err) => console.error("WatchPosition error:", err),
+              { enableHighAccuracy: true, maximumAge: 30000, timeout: 27000 }
+            );
           }
         }
       } catch (error) {
@@ -53,7 +72,12 @@ export default function ActiveJobPage({ params }: { params: Promise<{ id: string
         setLoading(false)
       }
     }
+
     fetchData()
+
+    return () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    }
   }, [id])
 
   if (loading) {

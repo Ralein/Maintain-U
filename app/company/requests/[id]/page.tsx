@@ -26,6 +26,10 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
       }
     }
     fetchData()
+
+    // Poll for status updates
+    const interval = setInterval(fetchData, 5000)
+    return () => clearInterval(interval)
   }, [id])
 
   if (loading) {

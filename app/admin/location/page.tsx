@@ -82,8 +82,8 @@ export default function AdminLocationPage() {
         }
         fetchTechs()
 
-        // Optional: Poll every 30 seconds
-        const interval = setInterval(fetchTechs, 30000)
+        // Poll every 10 seconds for live updates
+        const interval = setInterval(fetchTechs, 10000)
         return () => clearInterval(interval)
     }, [])
 

@@ -263,6 +263,7 @@ export async function getCompanyRequestsAction() {
 
         return {
             ...r,
+            date: r.preferredDate || undefined,
             status: effectiveStatus,
             companyName: companyProfile.companyName,
             companyLocation: companyProfile.address || undefined,
@@ -289,6 +290,8 @@ export async function getTechniciansAction() {
         let location = null;
         let lastSeen: string | null = null;
 
+        let isOnline = false;
+
         if (tech) {
             const lastAttendance = await db.select().from(attendance)
                 .where(eq(attendance.technicianId, tech.id))
@@ -301,13 +304,14 @@ export async function getTechniciansAction() {
                         location = JSON.parse(lastAttendance[0].locationCheckIn);
                     } catch (e) { }
                 }
-                lastSeen = lastAttendance[0].checkInTime ? new Date(lastAttendance[0].checkInTime).toISOString() : null
+                lastSeen = lastAttendance[0].checkInTime ? new Date(lastAttendance[0].checkInTime).toISOString() : null;
+                isOnline = !!(lastAttendance[0].checkInTime && !lastAttendance[0].checkOutTime);
             }
         }
 
         // Mock locations for specific users if no real data (to simulate live map for demo)
         if (!location) {
-            if (user.phone === "9876543212") location = { lat: 12.9716, lng: 77.5946, address: "MG Road, Bangalore" } // Raj
+            if (user.phone === "9876543212") { location = { lat: 12.9716, lng: 77.5946, address: "MG Road, Bangalore" }; isOnline = true; } // Raj online for demo
             else if (user.name?.includes("Amit")) location = { lat: 12.9716, lng: 77.5946, address: "MG Road, Bangalore" }
             else if (user.name?.includes("Sara")) location = { lat: 12.9352, lng: 77.6245, address: "Koramangala, Bangalore" }
         }
@@ -320,7 +324,8 @@ export async function getTechniciansAction() {
             name: name,
             skill: tech?.primarySkill || "General",
             rating: tech?.rating || "0",
-            status: (tech?.status || user.status) === 'active' ? 'Available' : (tech?.status || user.status),
+            status: isOnline ? 'Online' : (tech?.status || user.status) === 'active' ? 'Available' : (tech?.status || user.status),
+            isOnline,
             phone: user.phone,
             experience: tech?.experience,
             joinedAt: user.createdAt,
@@ -1074,6 +1079,7 @@ export async function getRequestByIdAction(id: string) {
     return {
         request: {
             ...request,
+            date: request.preferredDate || undefined,
             status: effectiveStatus,
             // fix: ensure null values become undefined to match Request interface
             preferredDate: request.preferredDate || undefined,
