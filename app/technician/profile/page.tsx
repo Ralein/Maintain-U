@@ -43,6 +43,7 @@ export default function TechnicianProfile() {
                     accountNumber: (res.data as any)?.bankDetails?.accountNumber,
                     ifsc: (res.data as any)?.bankDetails?.ifsc,
                     upi: (res.data as any)?.bankDetails?.upi,
+                    resume: (res.data as any)?.documents?.resume
                 })
             } else {
                 toast.error("Failed to load profile")
@@ -66,9 +67,10 @@ export default function TechnicianProfile() {
     const handleUpdateProfile = async () => {
         setUpdating(true)
         try {
-            const { bankName, accountHolder, accountNumber, ifsc, upi, ...rest } = editingData
+            const { bankName, accountHolder, accountNumber, ifsc, upi, resume, ...rest } = editingData
             const formattedData = {
                 ...rest,
+                resume,
                 bankDetails: { bankName, accountHolder, accountNumber, ifsc, upi }
             }
             const res = await updateTechnicianProfileAction(formattedData)
@@ -286,6 +288,17 @@ export default function TechnicianProfile() {
                                 placeholder="800"
                                 className="rounded-xl"
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="resume">Resume Link (Google Drive / LinkedIn)</Label>
+                            <Input
+                                id="resume"
+                                value={editingData.resume || ""}
+                                onChange={(e) => setEditingData({ ...editingData, resume: e.target.value })}
+                                placeholder="https://..."
+                                className="rounded-xl"
+                            />
+                            <p className="text-[10px] text-muted-foreground">Admin will verify this before approval.</p>
                         </div>
 
                         <div className="pt-4 border-t border-border/50">

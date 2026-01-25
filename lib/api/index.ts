@@ -108,9 +108,9 @@ if (typeof window !== "undefined") {
 
 export const api = {
   // Auth
-  async sendOTP(phone: string, role?: "company" | "technician") {
+  async sendOTP(phone: string, role?: "company" | "technician", details?: { name?: string, resume?: string }) {
     const { sendOTPAction } = await import("@/lib/actions")
-    return sendOTPAction(phone, role)
+    return sendOTPAction(phone, role, details)
   },
 
   async verifyOTP(phone: string, otp: string) {
@@ -226,6 +226,11 @@ export const api = {
   async assignTeam(jobId: string, techIds: string[], leadId: string) {
     const { assignTeamAction } = await import("@/lib/actions")
     return assignTeamAction(jobId, techIds, leadId)
+  },
+
+  async createDailyRoster(techIds: string[]) {
+    const { createDailyRosterAction } = await import("@/lib/actions")
+    return createDailyRosterAction(techIds)
   },
 
   async getTechnicians(filters?: string) {

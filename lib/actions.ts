@@ -8,7 +8,7 @@ import { cookies } from "next/headers"
 // Helper to simulate delay if requested, or just remove locally
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export async function sendOTPAction(phone: string, inputRole?: "company" | "technician") {
+export async function sendOTPAction(phone: string, inputRole?: "company" | "technician", details?: { name?: string, resume?: string }) {
     // Check if user exists first
     const existingUsers = await db.select().from(users).where(eq(users.phone, phone)).limit(1)
 
@@ -18,9 +18,29 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
 
         // If pending, BLOCK OTP immediately but UPDATE ROLE if changed
         if (user.status === 'pending') {
-            if (inputRole && inputRole !== user.role) {
-                await db.update(users).set({ role: inputRole }).where(eq(users.id, user.id));
-                user.role = inputRole; // Update local variable for session
+            const updates: any = {};
+            if (inputRole && inputRole !== user.role) updates.role = inputRole;
+            if (details?.name) updates.name = details.name;
+
+            if (Object.keys(updates).length > 0) {
+                await db.update(users).set(updates).where(eq(users.id, user.id));
+                if (updates.role) user.role = updates.role;
+            }
+
+            // If resume provided, ensure technician record exists
+            if (details?.resume && (user.role === 'technician' || inputRole === 'technician')) {
+                const existingTech = await db.query.technicians.findFirst({ where: eq(technicians.userId, user.id) });
+                if (existingTech) {
+                    await db.update(technicians)
+                        .set({ documents: { ...(existingTech.documents as any), resume: details.resume } })
+                        .where(eq(technicians.id, existingTech.id));
+                } else {
+                    await db.insert(technicians).values({
+                        userId: user.id,
+                        status: 'Pending',
+                        documents: { resume: details.resume }
+                    });
+                }
             }
 
             // Refresh cookie just in case (optional, but good for redirection flow)
@@ -36,7 +56,7 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
         // Allow Rejected users to "Request Again" -> Reset to Pending (and update role if provided)
         if (user.status === 'rejected') {
             await db.update(users).set({ status: 'pending', ...(inputRole ? { role: inputRole } : {}) }).where(eq(users.id, user.id));
-            (await cookies()).set("session_token", JSON.stringify({ userId: user.id, role: inputRole || user.role, status: 'pending' }), { httpOnly: true, path: '/' });
+            (await cookies()).set("session_token", JSON.stringify({ userId: inputRole || user.role, role: inputRole || user.role, status: 'pending' }), { httpOnly: true, path: '/' });
             return { success: false, error: "pending", message: "Account re-submitted for verification" }
         }
     } else {
@@ -50,7 +70,6 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
         else if (phone === "9876543212") { role = "technician"; status = "active"; }
         else if (phone === "Raleinnova123" || phone === "9876543211" || phone === "9876543213") {
             // Admin flows handled in verify, but if they try to get OTP we can just let them pass or handle casually
-            // For simplicity, let admins proceed to OTP step as they might be testing
             // BUT implementation plan said "skip OTP for new users". 
             // Admin isn't a "new user" in logic usually, but let's stick to the plan:
             // If it's the specific admin phone, we allow OTP flow so they can login.
@@ -61,13 +80,22 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
                 phone,
                 role,
                 status,
-                name: "New User"
+                name: details?.name || "New User"
             }).returning();
 
-            // Create session for pending user
-            (await cookies()).set("session_token", JSON.stringify({ userId: newUser.id, role: newUser.role, status: newUser.status }), { httpOnly: true, path: '/' });
+            // If resume provided, ensure technician record exists
+            if (details?.resume && role === 'technician') {
+                await db.insert(technicians).values({
+                    userId: newUser.id,
+                    status: 'Pending',
+                    documents: { resume: details.resume }
+                });
+            }
 
-            return { success: false, error: "pending", message: "Account created, pending verification" }
+            // Create session for pending user
+            (await cookies()).set("session_token", JSON.stringify({ userId: newUser.id, role: newUser.role, status: 'pending' }), { httpOnly: true, path: '/' });
+
+            return { success: false, error: "pending", message: "Account submitted for verification" }
         }
     }
 
@@ -332,7 +360,8 @@ export async function getTechniciansAction() {
             lat: location?.lat || null,
             lng: location?.lng || null,
             locationName: location?.address || "Unknown Location",
-            lastSeen
+            lastSeen,
+            documents: tech?.documents // Expose documents for verification
         }
     }))
 
@@ -353,6 +382,17 @@ export async function updateUserStatusAction(userId: string, status: "pending" |
             ...(role ? { role: role as any } : {})
         })
         .where(eq(users.id, userId))
+
+    // Also update technician status if exists
+    if (status === 'active') {
+        await db.update(technicians)
+            .set({ status: 'Available', approvedAt: new Date() })
+            .where(eq(technicians.userId, userId))
+    } else if (status === 'rejected' || status === 'banned') {
+        await db.update(technicians)
+            .set({ status: 'Rejected' }) // Or Banned
+            .where(eq(technicians.userId, userId))
+    }
 
     return { success: true }
 }
@@ -1435,6 +1475,140 @@ export async function postJobUpdateAction(jobId: string, message: string, photos
     }
 }
 
+// Helper to get/create a standby job for general attendance
+async function getOrCreateStandbyJob() {
+    // 1. Check for Internal Ops Company
+    let internalCompany = await db.query.companies.findFirst({
+        where: eq(companies.companyName, "Internal Operations") // Assumes name uniqueness or we just pick first
+    })
+
+    if (!internalCompany) {
+        // Create Internal Ops User & Company
+        // Use a fixed phone/id or random
+        const phone = "0000000000";
+        let internalUser = await db.query.users.findFirst({ where: eq(users.phone, phone) });
+
+        if (!internalUser) {
+            [internalUser] = await db.insert(users).values({
+                phone,
+                role: 'company',
+                status: 'active',
+                name: 'Internal Ops'
+            }).returning();
+        }
+
+        [internalCompany] = await db.insert(companies).values({
+            userId: internalUser.id,
+            companyName: "Internal Operations",
+            address: "HQ"
+        }).returning();
+    }
+
+    // 2. Check for Standby Request
+    let standbyRequest = await db.query.requests.findFirst({
+        where: and(
+            eq(requests.companyId, internalCompany.id),
+            eq(requests.serviceType, "Internal_Standby")
+        )
+    })
+
+    if (!standbyRequest) {
+        [standbyRequest] = await db.insert(requests).values({
+            companyId: internalCompany.id,
+            description: "General Standby & Operations",
+            priority: "Low",
+            serviceType: "Internal_Standby",
+            status: "In_Progress"
+        }).returning();
+    }
+
+    // 3. Check for Standby Job
+    let standbyJob = await db.query.jobs.findFirst({
+        where: eq(jobs.requestId, standbyRequest.id)
+    })
+
+    if (!standbyJob) {
+        [standbyJob] = await db.insert(jobs).values({
+            requestId: standbyRequest.id,
+            status: "In_Progress"
+        }).returning();
+    }
+
+    return standbyJob.id;
+}
+
+export async function createDailyRosterAction(techIds: string[]) {
+    try {
+        const jobId = await getOrCreateStandbyJob();
+        const today = new Date().toISOString().split('T')[0];
+        let count = 0;
+
+        for (const techId of techIds) {
+            // Check if already has assignment for today
+            // We use dailyAssignments to track 'Work Date'
+            // We can have multiple assignments, but for 'Roster' we ensure at least one.
+
+            // Check active assignment?
+            // Simplified: Just create a daily assignment linked to the Standby Job if none exists for *this job* today.
+            // Ideally we check if they are working on *any* job. 
+            // If they are selected here, we force them into Standby if they are free?
+            // Let's just create an assignment to Standby.
+
+            // Deduplicate: Check if tech has assignment for this job today
+            const existing = await db.query.dailyAssignments.findFirst({
+                where: and(
+                    eq(dailyAssignments.jobId, jobId),
+                    eq(dailyAssignments.workDate, today) // Exact check requires string match if date is saved as string or date type comparison
+                )
+            });
+
+            // Wait, dailyAssignments doesn't have techId. Attendance does.
+            // dailyAssignments groups attendance? Or creates a slot?
+            // Schema: dailyAssignments has `jobId`. `attendance` has `dailyAssignmentId` + `technicianId`.
+
+            // So we need a dailyAssignment for the Standby Job for Today.
+            let dailyAssignment = existing;
+            if (!dailyAssignment) {
+                [dailyAssignment] = await db.insert(dailyAssignments).values({
+                    jobId,
+                    workDate: today,
+                    status: 'Active'
+                }).returning();
+            }
+
+            // Now check attendance
+            const existingAttendance = await db.query.attendance.findFirst({
+                where: and(
+                    eq(attendance.dailyAssignmentId, dailyAssignment.id),
+                    eq(attendance.technicianId, techId)
+                )
+            })
+
+            if (!existingAttendance) {
+                await db.insert(attendance).values({
+                    dailyAssignmentId: dailyAssignment.id,
+                    technicianId: techId,
+                    status: 'Present',
+                    checkInTime: new Date(),
+                    locationCheckIn: JSON.stringify({ lat: 12.9716, lng: 77.5946, address: "HQ Check-in" }) // Auto check-in for roster
+                })
+
+                // Update Tech Status
+                await db.update(technicians)
+                    .set({ status: 'Available' })
+                    .where(eq(technicians.id, techId));
+
+                count++;
+            }
+        }
+
+        return { success: true, count }
+    } catch (e) {
+        console.error("Roster error:", e);
+        return { success: false, message: "Failed to create roster" };
+    }
+}
+
 export async function completeJobAction(jobId: string, signature: string) {
     try {
         await db.update(jobs)
@@ -1749,6 +1923,7 @@ export async function updateTechnicianProfileAction(data: {
     gender?: string;
     dailyRate?: number;
     bankDetails?: any;
+    resume?: string; // New Resume input
 }) {
     const cookieStore = await cookies()
     const sessionToken = cookieStore.get("session_token")
@@ -1765,6 +1940,7 @@ export async function updateTechnicianProfileAction(data: {
                 gender: data.gender,
                 dailyRate: data.dailyRate,
                 bankDetails: data.bankDetails,
+                documents: { resume: data.resume || "" }, // Store resume in documents JSON
                 updatedAt: new Date()
             })
             .where(eq(technicians.userId, session.userId))

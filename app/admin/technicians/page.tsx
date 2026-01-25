@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { Search, User, Check, X, Star, MapPin } from "lucide-react"
+import { Search, User, Check, X, Star, MapPin, FileText, ExternalLink } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -22,7 +22,7 @@ export default function AdminTechniciansPage() {
       const res = await api.getTechnicians()
       if (res.technicians) {
         const all = res.technicians
-        const pending = all.filter((t: any) => t.status === 'Pending' || t.status === 'pending')
+        const pending = all.filter((t: any) => (t.status === 'Pending' || t.status === 'pending') && t.name !== 'New User')
         const active = all.filter((t: any) => t.status !== 'Pending' && t.status !== 'pending' && t.status !== 'Banned')
         setTechnicians({ all, pending, active })
       }
@@ -103,7 +103,7 @@ export default function AdminTechniciansPage() {
             >
               <span>
                 {tab === "all" && "All Staff"}
-                {tab === "pending" && "Pending Approval"}
+                {tab === "pending" && "Onboarding"}
                 {tab === "active" && "On Duty"}
               </span>
 
@@ -163,6 +163,21 @@ export default function AdminTechniciansPage() {
                     {tech.status}
                   </span>
                 </div>
+
+                {/* Resume Verification Link */}
+                {tech.documents?.resume && (tech.status === 'Pending' || activeTab === 'pending') && (
+                  <div className="mt-2 mb-2 p-3 bg-blue-500/5 rounded-xl border border-blue-500/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Resume Submitted</span>
+                    </div>
+                    <a href={tech.documents.resume} target="_blank" rel="noopener noreferrer" className="text-[10px] font-bold bg-background px-3 py-1.5 rounded-lg border shadow-sm hover:bg-muted transition-colors flex items-center gap-1">
+                      Verify <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
 
                 {activeTab === 'pending' || tech.status === 'Pending' ? (
                   <div className="flex gap-2 pt-3 border-t border-border/40">

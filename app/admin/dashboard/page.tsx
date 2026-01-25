@@ -26,18 +26,20 @@ export default function AdminDashboard() {
           api.getRequests()
         ])
 
-        const pendingTechsCount = techsRes.technicians.filter((t: any) => t.status === "Pending").length
+        const pendingTechsCount = (techsRes?.technicians || []).filter((t: any) =>
+          (t.status === "Pending" || t.status === 'pending') && t.name !== 'New User'
+        ).length
 
         // Pending = Requests that are NOT yet fully assigned/confirmed
-        const pendingRequests = reqsRes.requests.filter((r: any) =>
+        const pendingRequests = (reqsRes?.requests || []).filter((r: any) =>
           ["Requested", "Reviewing", "Team_Forming", "Invites_Sent", "New"].includes(r.status)
         ).length
 
-        const activeJobs = jobsRes.jobs.filter((j: any) =>
+        const activeJobs = (jobsRes?.jobs || []).filter((j: any) =>
           ["In Progress", "In_Progress", "Accepted", "Team_Confirmed", "Dispatched", "On_The_Way", "Arrived", "Work_Started"].includes(j.status)
         ).length
 
-        const completedJobs = jobsRes.jobs.filter((j: any) =>
+        const completedJobs = (jobsRes?.jobs || []).filter((j: any) =>
           ["Completed", "Work_Completed", "Sign_Pending"].includes(j.status)
         ).length
 
@@ -69,6 +71,21 @@ export default function AdminDashboard() {
             requestId: j.requestId
           });
         });
+
+        // Add pending technicians to activity
+        techsRes.technicians
+          .filter((t: any) => (t.status === "Pending" || t.status === "pending") && t.name !== 'New User')
+          .forEach((t: any) => {
+            activityMap.set(`tech-${t.id}`, {
+              id: t.id,
+              type: 'approval',
+              title: t.name,
+              subtitle: 'New Technician',
+              status: 'Pending Approval',
+              createdAt: t.joinedAt,
+              requestId: null // Special handling for click
+            });
+          });
 
         const activityFeed = Array.from(activityMap.values())
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -207,16 +224,20 @@ export default function AdminDashboard() {
               stats.systemActivity.map((item) => (
                 <div
                   key={`${item.type}-${item.id}`}
-                  onClick={() => router.push(`/admin/requests/${item.requestId}`)}
+                  onClick={() => {
+                    if (item.type === 'approval') router.push('/admin/technicians?tab=pending');
+                    else router.push(`/admin/requests/${item.requestId}`);
+                  }}
                   className="glass-card p-5 rounded-[2rem] flex items-center justify-between border-white/5 cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-all group relative overflow-hidden active:scale-[0.99] shadow-lg shadow-black/5"
                 >
                   <div className="flex items-center gap-4 relative z-10">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 ${item.subtitle === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600' :
-                      item.subtitle === 'Mechanical' ? 'bg-slate-500/10 text-slate-600' :
-                        item.subtitle === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600' :
-                          'bg-primary/10 text-primary'
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-transform group-hover:scale-110 ${item.type === 'approval' ? 'bg-blue-500/10 text-blue-600' :
+                      item.subtitle === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600' :
+                        item.subtitle === 'Mechanical' ? 'bg-slate-500/10 text-slate-600' :
+                          item.subtitle === 'Plumbing' ? 'bg-cyan-500/10 text-cyan-600' :
+                            'bg-primary/10 text-primary'
                       }`}>
-                      {getServiceIcon(item.subtitle)}
+                      {item.type === 'approval' ? <UserPlus className="w-6 h-6" /> : getServiceIcon(item.subtitle)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -224,9 +245,12 @@ export default function AdminDashboard() {
                         {item.type === 'request' && (
                           <span className="bg-red-500/10 text-red-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">URGENT</span>
                         )}
+                        {item.type === 'approval' && (
+                          <span className="bg-blue-500/10 text-blue-600 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">VERIFY</span>
+                        )}
                       </div>
                       <p className="text-xs font-bold text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-primary/40" />
+                        <span className={`w-1 h-1 rounded-full ${item.type === 'approval' ? 'bg-blue-500' : 'bg-primary/40'}`} />
                         {item.subtitle}
                       </p>
                     </div>
@@ -234,8 +258,9 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-4 relative z-10">
                     <div className="text-right hidden sm:block">
                       <span className={`px-3 py-1 text-[10px] font-black rounded-lg uppercase tracking-widest border transition-all ${item.status === 'Completed' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
-                        item.status === 'In Progress' || item.status === 'In_Progress' || item.status === 'Requested' ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 animate-pulse' :
-                          'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                        item.status === 'Pending Approval' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20 animate-pulse' :
+                          item.status === 'In Progress' || item.status === 'In_Progress' || item.status === 'Requested' ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 animate-pulse' :
+                            'bg-blue-500/10 text-blue-600 border-blue-500/20'
                         }`}>
                         {item.status.replace('_', ' ')}
                       </span>

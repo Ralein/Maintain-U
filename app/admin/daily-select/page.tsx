@@ -1,23 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { BiUser, BiCheck, BiSearch, BiCalendarCheck } from "react-icons/bi"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import { api } from "@/lib/api"
 
 export default function DailySelectPage() {
     const [selectedTechs, setSelectedTechs] = useState<string[]>([])
     const [isProcessing, setIsProcessing] = useState(false)
+    const [loading, setLoading] = useState(true)
+    const [technicians, setTechnicians] = useState<any[]>([])
 
-    // Mock Data
-    const technicians = [
-        { id: "T-001", name: "Raj Kumar", skill: "Electrical", status: "Available", rating: 4.8 },
-        { id: "T-002", name: "Priya Singh", skill: "Mechanical", status: "Available", rating: 4.6 },
-        { id: "T-003", name: "Amit Patel", skill: "HVAC", status: "Busy", rating: 4.9 },
-        { id: "T-006", name: "Vikram Malhotra", skill: "Electrical", status: "Available", rating: 4.7 },
-    ]
+    useEffect(() => {
+        const fetchTechs = async () => {
+            try {
+                const res = await api.getTechnicians()
+                if (res.technicians) {
+                    // Filter mainly available ones, but show all for selection
+                    // Maybe filter out 'Banned' or 'Rejected'
+                    const validTechs = res.technicians.filter((t: any) => t.status !== 'Banned' && t.status !== 'Rejected' && t.status !== 'pending' && t.status !== 'Pending')
+                    setTechnicians(validTechs)
+                }
+            } catch (e) {
+                toast.error("Failed to load technicians")
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchTechs()
+    }, [])
 
     const handleToggle = (id: string) => {
         setSelectedTechs(prev =>
@@ -31,7 +45,7 @@ export default function DailySelectPage() {
         if (selectedTechs.length === technicians.length) {
             setSelectedTechs([])
         } else {
-            setSelectedTechs(technicians.map(t => t.id))
+            setSelectedTechs(technicians.map(t => t.techId))
         }
     }
 
@@ -42,11 +56,19 @@ export default function DailySelectPage() {
         }
 
         setIsProcessing(true)
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        setIsProcessing(false)
-        toast.success(`Successfully added ${selectedTechs.length} technicians to daily roster`)
-        setSelectedTechs([])
+        try {
+            const res = await api.createDailyRoster(selectedTechs)
+            if (res.success) {
+                toast.success(`Marked ${res.count} technicians as Present`)
+                setSelectedTechs([])
+            } else {
+                toast.error(res.message || "Failed to update roster")
+            }
+        } catch (e) {
+            toast.error("Error updating roster")
+        } finally {
+            setIsProcessing(false)
+        }
     }
 
     return (
@@ -94,49 +116,58 @@ export default function DailySelectPage() {
 
                 {/* List */}
                 <div className="space-y-3">
-                    {technicians.map((tech) => {
-                        const isSelected = selectedTechs.includes(tech.id)
-                        return (
-                            <div
-                                key={tech.id}
-                                onClick={() => handleToggle(tech.id)}
-                                className={`glass-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all border ${isSelected
-                                    ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)]"
-                                    : "hover:border-primary/30"
-                                    }`}
-                            >
-                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
-                                    ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-muted-foreground/30"
-                                    }`}>
-                                    {isSelected && <BiCheck className="w-4 h-4" />}
-                                </div>
-
-                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-2xl shadow-inner">
-                                    <BiUser className="text-muted-foreground" />
-                                </div>
-
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between">
-                                        <p className={`font-bold text-lg leading-tight transition-colors ${isSelected ? "text-primary" : ""}`}>
-                                            {tech.name}
-                                        </p>
-                                        <span className="flex items-center gap-1 text-xs font-bold text-yellow-500">
-                                            ★ {tech.rating}
-                                        </span>
+                    {loading ? (
+                        <div className="text-center py-10">
+                            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                            <p className="text-xs text-muted-foreground mt-2 uppercase tracking-widest">Loading staff...</p>
+                        </div>
+                    ) : technicians.length === 0 ? (
+                        <div className="text-center py-10 border border-dashed rounded-2xl">No technicians found</div>
+                    ) : (
+                        technicians.map((tech: any) => {
+                            const isSelected = selectedTechs.includes(tech.techId)
+                            return (
+                                <div
+                                    key={tech.techId}
+                                    onClick={() => handleToggle(tech.techId)}
+                                    className={`glass-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer transition-all border ${isSelected
+                                        ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)]"
+                                        : "hover:border-primary/30"
+                                        }`}
+                                >
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected
+                                        ? "border-primary bg-primary text-primary-foreground"
+                                        : "border-muted-foreground/30"
+                                        }`}>
+                                        {isSelected && <BiCheck className="w-4 h-4" />}
                                     </div>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{tech.skill}</p>
-                                        <span className="w-1 h-1 rounded-full bg-border" />
-                                        <span className={`text-[10px] font-bold uppercase ${tech.status === 'Available' ? 'text-green-500' : 'text-orange-500'
-                                            }`}>
-                                            {tech.status}
-                                        </span>
+
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-2xl shadow-inner">
+                                        <BiUser className="text-muted-foreground" />
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between">
+                                            <p className={`font-bold text-lg leading-tight transition-colors ${isSelected ? "text-primary" : ""}`}>
+                                                {tech.name}
+                                            </p>
+                                            <span className="flex items-center gap-1 text-xs font-bold text-yellow-500">
+                                                ★ {tech.rating > 0 ? Number(tech.rating).toFixed(1) : 'N/A'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">{tech.skill}</p>
+                                            <span className="w-1 h-1 rounded-full bg-border" />
+                                            <span className={`text-[10px] font-bold uppercase ${tech.status === 'Available' ? 'text-green-500' : 'text-orange-500'
+                                                }`}>
+                                                {tech.status}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })
+                    )}
                 </div>
             </main>
 

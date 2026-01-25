@@ -1,7 +1,7 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone, AlertTriangle, FileText, Briefcase, Star } from "lucide-react"
+import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone, AlertTriangle, FileText, Briefcase, Star, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
 import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
@@ -262,51 +262,71 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
         {/* Ratings (Client Feedback) */}
         {
           request.status === "Completed" && !request.isRated && request.technicianId && (
-            <section className="glass-card p-6 rounded-3xl border-primary/20 shadow-xl shadow-primary/5 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-yellow-500/10 rounded-2xl text-yellow-500">
-                  <Star className="w-6 h-6 fill-current" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight">Rate Service</h2>
-                  <p className="text-xs text-muted-foreground font-medium">How was {request.technicianName}'s work?</p>
-                </div>
-              </div>
+            <section className="relative overflow-hidden p-[2px] rounded-3xl group animate-in slide-in-from-bottom-4 duration-700">
+              {/* Grading Border Animation */}
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-500 opacity-50 animate-gradient-xy" />
 
-              <div className="flex justify-center gap-2 mb-8">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    onMouseEnter={() => setHover(star)}
-                    onMouseLeave={() => setHover(0)}
-                    onClick={() => setRating(star)}
-                    className={`p-1 transition-all duration-200 transform ${star <= (hover || rating) ? 'scale-110' : 'scale-100'}`}
-                  >
-                    <Star
-                      className={`w-10 h-10 ${star <= (hover || rating)
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'text-muted-foreground/30'
-                        }`}
+              <div className="relative bg-background/90 backdrop-blur-xl rounded-[22px] p-6 lg:p-8">
+                {/* Action Badge */}
+                <div className="absolute top-4 right-4 animate-pulse">
+                  <span className="bg-yellow-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg shadow-yellow-500/30">
+                    Action Required
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center justify-center text-center mb-8 mt-2">
+                  <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center text-yellow-500 mb-4 shadow-inner ring-4 ring-yellow-500/10">
+                    <Star className="w-8 h-8 fill-current" />
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tight">Verification & Feedback</h2>
+                  <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                    Please rate <span className="text-foreground font-bold">{request.technicianName}</span>'s work to finalize this ticket.
+                  </p>
+                </div>
+
+                <div className="flex justify-center gap-3 mb-8">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onMouseEnter={() => setHover(star)}
+                      onMouseLeave={() => setHover(0)}
+                      onClick={() => setRating(star)}
+                      className="group/star relative focus:outline-none transition-transform active:scale-95"
+                    >
+                      <Star
+                        className={`w-12 h-12 transition-all duration-300 ${star <= (hover || rating)
+                          ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] scale-110'
+                          : 'text-muted-foreground/20 hover:text-yellow-400/50'
+                          }`}
+                        strokeWidth={1.5}
+                      />
+                      <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-yellow-500 opacity-0 group-hover/star:opacity-100 transition-opacity uppercase tracking-widest whitespace-nowrap">
+                        {star === 1 ? "Poor" : star === 5 ? "Excellent" : ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="relative">
+                    <textarea
+                      value={review}
+                      onChange={(e) => setReview(e.target.value)}
+                      placeholder="Share your experience (optional)..."
+                      className="w-full p-4 pl-5 rounded-2xl bg-muted/40 border-2 border-transparent focus:border-yellow-500/20 focus:bg-background outline-none text-sm min-h-[120px] transition-all resize-none placeholder:text-muted-foreground/50 shadow-inner"
                     />
-                  </button>
-                ))}
-              </div>
+                    <MessageSquare className="absolute top-4 right-4 w-4 h-4 text-muted-foreground/30" />
+                  </div>
 
-              <div className="space-y-4">
-                <textarea
-                  value={review}
-                  onChange={(e) => setReview(e.target.value)}
-                  placeholder="Write a brief review (optional)..."
-                  className="w-full p-4 rounded-2xl bg-muted/30 border-border focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm min-h-[100px] transition-all"
-                />
-                <button
-                  onClick={handleRate}
-                  disabled={rating === 0 || submitting}
-                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2"
-                >
-                  {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                  {submitting ? "Submitting..." : "Submit Rating"}
-                </button>
+                  <button
+                    onClick={handleRate}
+                    disabled={rating === 0 || submitting}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:scale-[1.01] transition-all disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98] flex items-center justify-center gap-3"
+                  >
+                    {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Star className="w-5 h-5 fill-current" />}
+                    <span className="uppercase tracking-widest text-xs">{submitting ? "Submitting..." : "Submit Review"}</span>
+                  </button>
+                </div>
               </div>
             </section>
           )

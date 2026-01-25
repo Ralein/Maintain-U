@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, ShieldCheck, CheckCircle2, Clock, Home, ArrowRight } from "lucide-react"
+import { Loader2, ShieldCheck, CheckCircle2, Clock, Home, ArrowRight, FileText } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
-type Step = "phone" | "verify-required" | "waiting" | "approved"
+type Step = "phone" | "details" | "verify-required" | "waiting" | "approved"
 
 function SignupContent() {
   const router = useRouter()
@@ -14,6 +14,8 @@ function SignupContent() {
   const role = searchParams?.get("role") as "company" | "technician" || "company"
 
   const [phone, setPhone] = useState(searchParams?.get("phone") || "")
+  const [name, setName] = useState("")
+  const [resume, setResume] = useState("")
   const [step, setStep] = useState<Step>("phone")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -102,7 +104,11 @@ function SignupContent() {
       const status = await api.checkUserStatus(phone)
 
       if (!status.exists) {
-        setStep("verify-required")
+        if (role === 'technician') {
+          setStep("details")
+        } else {
+          setStep("verify-required")
+        }
       } else {
         if (status.status === 'pending') {
           setStep("waiting")
@@ -127,10 +133,16 @@ function SignupContent() {
     }
   }
 
+  const handleDetailsSubmit = () => {
+    if (!name.trim()) { toast.error("Please enter your name"); return; }
+    if (role === 'technician' && !resume.trim()) { toast.error("Please provide a resume link"); return; }
+    setStep("verify-required")
+  }
+
   const handleSubmitForVerification = async () => {
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone, role) // This creates the pending user
+      const res = await api.sendOTP(phone, role, { name, resume }) // Pass details
 
       if (res.error === 'pending' || (res.success === false && res.message.includes("pending"))) {
         toast.info(res.message || "Account submitted for verification")
@@ -178,12 +190,14 @@ function SignupContent() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {step === "phone" && "Get Started"}
+            {step === "details" && "Technician Profile"}
             {step === "verify-required" && "Admin Verification"}
             {step === "waiting" && "Verification Pending"}
             {step === "approved" && "Verified!"}
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
             {step === "phone" && "Enter your phone number to begin"}
+            {step === "details" && "Please provide your details below"}
             {step === "verify-required" && "One-time admin approval required"}
             {step === "waiting" && "Please wait for approval"}
             {step === "approved" && "Entering OTP automatically..."}
@@ -241,6 +255,50 @@ function SignupContent() {
             >
               <Home className="w-4 h-4" />
               Back
+            </button>
+          </div>
+        ) : step === "details" ? (
+          <div className="space-y-6 text-center animate-in fade-in duration-300">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-purple-50 dark:ring-purple-950/20">
+              <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600 dark:text-purple-400" />
+            </div>
+
+            <div className="space-y-4 text-left">
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium ml-1">Full Name</label>
+                <input
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs sm:text-sm font-medium ml-1">Resume Link (URL)</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/..."
+                  value={resume}
+                  onChange={(e) => setResume(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
+                />
+                <p className="text-[10px] text-muted-foreground ml-1">Provide a link to your CV or Portfolio (Google Drive, LinkedIn, etc.)</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleDetailsSubmit}
+              className="w-full py-3 sm:py-3.5 px-6 rounded-xl bg-purple-600 text-white text-sm sm:text-base font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
+            >
+              Continue
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={resetFlow}
+              className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Start Over
             </button>
           </div>
         ) : step === "verify-required" ? (
