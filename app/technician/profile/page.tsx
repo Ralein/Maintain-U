@@ -132,18 +132,15 @@ export default function TechnicianProfile() {
             {/* Menu Options */}
             <main className="px-6 -mt-10 space-y-5 mx-auto max-w-md relative z-10">
                 {/* Stats Row */}
+                {/* Stats Row */}
                 <section className="flex gap-3">
                     <div className="flex-1 glass-card p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <p className="text-2xl font-bold text-primary">142</p>
+                        <p className="text-2xl font-bold text-primary">{profile?.completedJobs || 0}</p>
                         <p className="text-[10px] uppercase font-bold text-muted-foreground">Jobs Done</p>
                     </div>
                     <div className="flex-1 glass-card p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <p className="text-2xl font-bold text-green-500">98%</p>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">On Time</p>
-                    </div>
-                    <div className="flex-1 glass-card p-4 rounded-2xl flex flex-col items-center justify-center text-center">
-                        <p className="text-2xl font-bold text-orange-500">12</p>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Streak</p>
+                        <p className="text-2xl font-bold text-yellow-500">{profile?.rating ? Number(profile.rating).toFixed(1) : "N/A"}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Rating</p>
                     </div>
                 </section>
 

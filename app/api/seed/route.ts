@@ -1,86 +1,74 @@
 
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { users, companies, requests, jobs, technicians } from "@/db/schema";
+import { requests, jobs, dailyAssignments, attendance, notifications, jobUpdates, substitutions, ratings, invoices, payments, technicians, companies, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET() {
     try {
-        console.log("Seeding database...");
+        console.log("Full Factory Reset...");
 
-        // 1. Create Techs if not exist
-        let techUser = await db.query.users.findFirst({ where: eq(users.phone, "9876543212") });
-        if (!techUser) {
-            [techUser] = await db.insert(users).values({
-                phone: "9876543212",
-                role: "technician",
-                status: "active",
-                name: "Raj Kumar"
-            }).returning();
-        }
+        // Delete all transactional data in reverse dependency order
+        await db.delete(notifications);
+        await db.delete(attendance);
+        await db.delete(substitutions);
+        await db.delete(dailyAssignments);
+        await db.delete(jobUpdates);
+        await db.delete(ratings);
+        await db.delete(payments);
+        await db.delete(invoices);
+        await db.delete(jobs);
+        await db.delete(requests);
 
-        const techProfile = await db.query.technicians.findFirst({ where: eq(technicians.userId, techUser.id) });
-        if (!techProfile) {
-            await db.insert(technicians).values({
-                userId: techUser.id,
-                primarySkill: "Electrical",
-                status: "Available",
-                rating: 4.8,
-                experience: 5
-            });
-        }
+        // Delete Profiles
+        await db.delete(technicians);
+        await db.delete(companies);
 
-        // 2. Create Company
-        let compUser = await db.query.users.findFirst({ where: eq(users.phone, "9876543210") });
-        if (!compUser) {
-            [compUser] = await db.insert(users).values({
-                phone: "9876543210",
-                role: "company",
-                status: "active",
-                name: "ABC Industries"
-            }).returning();
-        }
+        // Delete Users (Except maybe hardcoded admins if we wanted, but let's wipe all for "Remove all mockups")
+        await db.delete(users);
 
-        let company = await db.query.companies.findFirst({ where: eq(companies.userId, compUser.id) });
-        if (!company) {
-            [company] = await db.insert(companies).values({
-                userId: compUser.id,
-                companyName: "ABC Industries",
-                industryType: "Manufacturing",
-                address: "Sector 18, Gurgaon"
-            }).returning();
-        }
+        // RESTORE ACCESS: Create Essential Users Only
+        // 1. Admin
+        await db.insert(users).values({
+            phone: "Raleinnova123",
+            role: "admin",
+            status: "active",
+            name: "Admin User",
+            // Add a password or rely on magic login if applicable. Using simple setup.
+        });
 
-        // 3. Create Requests
-        const reqs = await db.select().from(requests);
-        if (reqs.length === 0) {
-            const [r1] = await db.insert(requests).values({
-                companyId: company.id,
-                serviceType: "Electrical",
-                priority: "Urgent",
-                description: "Main Fuse Blown",
-                status: "Requested",
-                preferredDate: new Date().toISOString().split('T')[0]
-            }).returning();
+        // 2. Company (ABC Industries) - For creating new requests
+        const [compUser] = await db.insert(users).values({
+            phone: "9876543210",
+            role: "company",
+            status: "active",
+            name: "ABC Industries"
+        }).returning();
 
-            const [r2] = await db.insert(requests).values({
-                companyId: company.id,
-                serviceType: "Mechanical",
-                priority: "Normal",
-                description: "Conveyor Belt Issue",
-                status: "In_Progress",
-                preferredDate: new Date().toISOString().split('T')[0]
-            }).returning();
+        await db.insert(companies).values({
+            userId: compUser.id,
+            companyName: "ABC Industries",
+            industryType: "Manufacturing",
+            address: "Sector 18, Gurgaon"
+        });
 
-            // Create Job for In_Progress
-            await db.insert(jobs).values({
-                requestId: r2.id,
-                status: "In_Progress",
-                startedAt: new Date()
-            });
-        }
+        // 3. Technician (Raj Kumar) - For accepting jobs
+        const [techUser] = await db.insert(users).values({
+            phone: "9876543212",
+            role: "technician",
+            status: "active",
+            name: "Raj Kumar"
+        }).returning();
 
-        return NextResponse.json({ success: true, message: "Seeded" });
+        await db.insert(technicians).values({
+            userId: techUser.id,
+            primarySkill: "Electrical",
+            status: "Available",
+            rating: 5.0,
+            experience: 5
+        });
+
+        return NextResponse.json({ success: true, message: "System Reset & Access Restored" });
     } catch (e: any) {
         return NextResponse.json({ success: false, error: e.message }, { status: 500 });
     }

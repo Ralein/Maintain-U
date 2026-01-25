@@ -20,11 +20,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [techsRes, jobsRes, reqsRes] = await Promise.all([
-          api.getTechnicians(),
-          api.getJobs(),
-          api.getRequests()
-        ])
+        let techsRes: { technicians: any[] } = { technicians: [] }
+        let jobsRes: { jobs: any[] } = { jobs: [] }
+        let reqsRes: { requests: any[] } = { requests: [] }
+
+        try { techsRes = await api.getTechnicians() } catch (e) { console.error("Tech fetch failed", e) }
+        try { jobsRes = await api.getJobs() } catch (e) { console.error("Jobs fetch failed", e) }
+        try { reqsRes = await api.getRequests() } catch (e) { console.error("Reqs fetch failed", e) }
+
+        console.log("Dashboard Debug - Techs:", techsRes?.technicians?.length)
+        console.log("Dashboard Debug - JOBs:", jobsRes?.jobs?.length)
+        console.log("Dashboard Debug - REQs:", reqsRes?.requests?.length)
 
         const pendingTechsCount = (techsRes?.technicians || []).filter((t: any) =>
           (t.status === "Pending" || t.status === 'pending') && t.name !== 'New User'
@@ -108,7 +114,7 @@ export default function AdminDashboard() {
   const quickActions = [
     { label: "Add Tech", desc: "Manage workforce", icon: UserPlus, path: "/admin/technicians", color: "text-primary", bg: "bg-primary/10" },
     { label: "Attendance", desc: "Daily work logs", icon: Calendar, path: "/admin/daily-select", color: "text-purple-500", bg: "bg-purple-500/10" },
-    { label: "Payroll", desc: "Finances & salary", icon: DollarSign, path: "/admin/salary", color: "text-green-600", bg: "bg-green-600/10" },
+    { label: "Onboarding", desc: "Verify new recruits", icon: UserPlus, path: "/admin/onboarding", color: "text-blue-600", bg: "bg-blue-600/10" },
     { label: "Feedbacks", desc: "Client reviews", icon: Star, path: "/admin/feedback", color: "text-yellow-500", bg: "bg-yellow-500/10" },
   ]
 
@@ -218,7 +224,8 @@ export default function AdminDashboard() {
                 <div className="p-4 bg-muted/50 rounded-full text-muted-foreground/30">
                   <Briefcase className="w-10 h-10" />
                 </div>
-                <p className="text-muted-foreground font-bold text-sm">Quiet Day... No Activity</p>
+                <p className="text-muted-foreground font-bold text-sm">No System Activity Yet</p>
+                <p className="text-xs text-muted-foreground max-w-[200px]">New requests, jobs, and technician approvals will appear here.</p>
               </div>
             ) : (
               stats.systemActivity.map((item) => (
