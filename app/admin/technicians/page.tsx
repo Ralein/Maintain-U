@@ -183,7 +183,7 @@ export default function AdminTechniciansPage() {
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/40">
                     <span className="font-mono opacity-70">{tech.phone || tech.id.slice(0, 8)}</span>
                     <span className="flex items-center gap-1 text-amber-500 font-bold bg-amber-500/10 px-2 py-0.5 rounded-md">
-                      <Star className="w-3 h-3 fill-current" /> {tech.rating > 0 ? tech.rating : 'N/A'}
+                      <Star className="w-3 h-3 fill-current" /> {tech.rating > 0 ? Number(tech.rating).toFixed(1) : 'N/A'}
                     </span>
                   </div>
                 )}

@@ -6,6 +6,7 @@ import { api, Job } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { Bell, Zap, MapPin, Calendar, ArrowRight, CheckCircle, Clock, AlertCircle, Wrench, Droplets } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { getTechnicianProfileAction } from "@/lib/actions"
 
 export default function TechnicianDashboard() {
   const router = useRouter()
@@ -16,13 +17,13 @@ export default function TechnicianDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [res, user] = await Promise.all([
+        const [res, profileRes] = await Promise.all([
           api.getJobs(),
-          api.getCurrentUser()
+          getTechnicianProfileAction()
         ])
 
-        if (user && user.name) {
-          setTechName(user.name.split(' ')[0])
+        if (profileRes.success && profileRes.data?.name) {
+          setTechName(profileRes.data.name.split(' ')[0])
         }
 
         if (res.jobs) {
@@ -152,7 +153,7 @@ export default function TechnicianDashboard() {
             <button className="text-xs font-semibold text-primary uppercase tracking-wide hover:underline">View All</button>
           </div>
           <div className="space-y-3">
-            {jobs.filter(j => j.id !== activeJob?.id).slice(0, 3).map((job) => (
+            {jobs.filter(j => j.id !== activeJob?.id && j.status !== 'Completed').slice(0, 3).map((job) => (
               <div key={job.id} onClick={() => router.push(`/technician/jobs/${job.id}`)} className="glass-card p-4 rounded-2xl flex items-center justify-between group cursor-pointer hover:border-primary/30 transition-all border-transparent">
                 <div className="flex gap-4 items-center">
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${job.service === 'Electrical' ? 'bg-yellow-500/10 text-yellow-600' : 'bg-primary/10 text-primary'}`}>
@@ -170,7 +171,7 @@ export default function TechnicianDashboard() {
                 </div>
               </div>
             ))}
-            {jobs.length <= 1 && !activeJob && (
+            {jobs.filter(j => j.id !== activeJob?.id && j.status !== 'Completed').length === 0 && (
               <div className="text-center py-8 text-muted-foreground bg-muted/5 rounded-2xl border border-dashed">
                 <p className="text-sm">No upcoming jobs scheduled</p>
               </div>

@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { Zap, Wrench, ArrowRight } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import {
+  Zap,
+  Wrench,
+  ArrowRight,
+  Bell,
+  MapPin,
+  Briefcase,
+  ChevronLeft,
+  ChevronRight,
+  Calendar
+} from "lucide-react"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -79,12 +90,23 @@ export default function TechnicianJobsPage() {
   return (
     <div className="min-h-screen pb-32 app-gradient">
       {/* Header */}
-      <header className="sticky top-0 z-30 px-6 py-6 glass border-b-0 mb-6 flex flex-col gap-1 shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Worker Portal</h1>
-        <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5 uppercase tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          Manage Your Schedule
-        </p>
+      <header className="sticky top-0 z-30 px-6 py-4 glass border-b-0 mb-6 flex items-center justify-between transition-all shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Worker Portal</h1>
+          <p className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5 uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Manage Your Schedule
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            onClick={() => router.push("/technician/notifications")}
+            className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm"
+          >
+            <Bell className="w-5 h-5 text-foreground" />
+          </button>
+        </div>
       </header>
 
       <main className="px-6 space-y-8">
@@ -354,6 +376,3 @@ export default function TechnicianJobsPage() {
     </div>
   )
 }
-
-// Missing imports fix
-import { MapPin, Briefcase, ChevronLeft, ChevronRight, Calendar } from "lucide-react"

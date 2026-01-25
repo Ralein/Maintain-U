@@ -4,9 +4,12 @@ import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { api } from "@/lib/api"
 import { format } from "date-fns"
-import { Calendar, CheckCircle, Clock, MapPin, XCircle } from "lucide-react"
+import { Calendar, CheckCircle, Clock, MapPin, XCircle, Bell } from "lucide-react"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { useRouter } from "next/navigation"
 
 export default function AttendancePage() {
+    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [history, setHistory] = useState<any[]>([])
     const [todayStatus, setTodayStatus] = useState<"pending" | "present" | "leave">("pending")
@@ -54,9 +57,20 @@ export default function AttendancePage() {
     return (
         <div className="min-h-screen pb-32">
             {/* Header */}
-            <header className="sticky top-0 z-20 px-6 py-4 glass border-b-0 mb-6 transition-all">
-                <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
-                <p className="text-xs text-muted-foreground font-medium">Manage your daily work log</p>
+            <header className="sticky top-0 z-30 px-6 py-4 glass border-b-0 mb-6 flex items-center justify-between transition-all shadow-sm">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Work Log & Tracking</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <button
+                        onClick={() => router.push("/technician/notifications")}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm"
+                    >
+                        <Bell className="w-5 h-5 text-foreground" />
+                    </button>
+                </div>
             </header>
 
             <main className="px-6 space-y-6">

@@ -5,30 +5,52 @@ import { BiUser, BiCog, BiLogOut, BiChevronRight, BiBuilding, BiPhone, BiEnvelop
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useEffect, useState } from "react"
-import { getCompanyProfileAction } from "@/lib/actions"
+import { getCompanyProfileAction, updateCompanyProfileAction } from "@/lib/actions"
 import { api } from "@/lib/api"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function CompanyProfile() {
     const router = useRouter()
 
     const [profile, setProfile] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingData, setEditingData] = useState<any>({})
+    const [updating, setUpdating] = useState(false)
+
+    const fetchProfile = async () => {
+        try {
+            const res = await getCompanyProfileAction()
+            if (res.success) {
+                setProfile(res.data)
+                setEditingData({
+                    companyName: res.data?.companyName,
+                    industryType: res.data?.industryType,
+                    email: res.data?.email,
+                    address: res.data?.address,
+                    contactPerson: res.data?.contactPerson,
+                    gstin: res.data?.gstin,
+                    spokespersonPhone: res.data?.spokespersonPhone,
+                })
+            } else {
+                toast.error("Failed to load profile")
+            }
+        } catch (e) {
+            toast.error("An error occurred")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const res = await getCompanyProfileAction()
-                if (res.success) {
-                    setProfile(res.data)
-                } else {
-                    toast.error("Failed to load profile")
-                }
-            } catch (e) {
-                toast.error("An error occurred")
-            } finally {
-                setLoading(false)
-            }
-        }
         fetchProfile()
     }, [])
 
@@ -40,8 +62,28 @@ export default function CompanyProfile() {
     const menuItems = [
         { icon: BiBuilding, label: "Company Details", value: profile?.companyName || "Loading..." },
         { icon: BiPhone, label: "Contact Phone", value: profile?.phone || "Loading..." },
-        { icon: BiEnvelope, label: "Email Address", value: profile?.email || "admin@example.com" },
+        { icon: BiEnvelope, label: "Email Address", value: profile?.email || "admin@company.com" },
+        { icon: BiUser, label: "Contact Person", value: profile?.contactPerson || "Not Set" },
+        { icon: BiShield, label: "GST Number", value: profile?.gstin || "Not Provided" },
     ]
+
+    const handleUpdateProfile = async () => {
+        setUpdating(true)
+        try {
+            const res = await updateCompanyProfileAction(editingData)
+            if (res.success) {
+                toast.success("Profile updated")
+                setIsEditing(false)
+                fetchProfile()
+            } else {
+                toast.error(res.message || "Update failed")
+            }
+        } catch (e) {
+            toast.error("Failed to update profile")
+        } finally {
+            setUpdating(false)
+        }
+    }
 
     if (loading) {
         return (
@@ -60,7 +102,10 @@ export default function CompanyProfile() {
                         <div className="w-28 h-28 rounded-full bg-white dark:bg-slate-800 shadow-2xl flex items-center justify-center ring-4 ring-white/50 dark:ring-white/10 p-1">
                             <BiBuilding className="w-12 h-12 text-primary" />
                         </div>
-                        <button className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="absolute -top-1 -right-1 p-2 bg-primary text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                        >
                             <BiEdit className="w-4 h-4" />
                         </button>
                     </div>
@@ -128,6 +173,102 @@ export default function CompanyProfile() {
             </main>
 
             <BottomNav active="profile" role="company" />
+
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md rounded-3xl p-6 overflow-hidden">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Edit Profile</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="companyName">Company Name</Label>
+                            <Input
+                                id="companyName"
+                                value={editingData.companyName || ""}
+                                onChange={(e) => setEditingData({ ...editingData, companyName: e.target.value })}
+                                placeholder="Enter company name"
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="industry">Industry</Label>
+                            <Input
+                                id="industry"
+                                value={editingData.industryType || ""}
+                                onChange={(e) => setEditingData({ ...editingData, industryType: e.target.value })}
+                                placeholder="E.g. Manufacturing"
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email Address</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                value={editingData.email || ""}
+                                onChange={(e) => setEditingData({ ...editingData, email: e.target.value })}
+                                placeholder="admin@company.com"
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="contactPerson">Contact Person</Label>
+                            <Input
+                                id="contactPerson"
+                                value={editingData.contactPerson || ""}
+                                onChange={(e) => setEditingData({ ...editingData, contactPerson: e.target.value })}
+                                placeholder="Contact person name"
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="address">Address</Label>
+                            <Input
+                                id="address"
+                                value={editingData.address || ""}
+                                onChange={(e) => setEditingData({ ...editingData, address: e.target.value })}
+                                placeholder="Company address"
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="gstin">GST Number</Label>
+                            <Input
+                                id="gstin"
+                                value={editingData.gstin || ""}
+                                onChange={(e) => setEditingData({ ...editingData, gstin: e.target.value })}
+                                placeholder="GST Number"
+                                className="rounded-xl uppercase shadow-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="spokespersonPhone">Contact Phone</Label>
+                            <Input
+                                id="spokespersonPhone"
+                                value={editingData.spokespersonPhone || ""}
+                                onChange={(e) => setEditingData({ ...editingData, spokespersonPhone: e.target.value })}
+                                placeholder="Secondary contact phone"
+                                className="rounded-xl shadow-sm"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="flex-row gap-2">
+                        <button
+                            onClick={() => setIsEditing(false)}
+                            className="flex-1 py-3 px-4 rounded-xl border border-border font-semibold text-sm hover:bg-muted transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleUpdateProfile}
+                            disabled={updating}
+                            className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white animate-spin rounded-full" /> : "Save Changes"}
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

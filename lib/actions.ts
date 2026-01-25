@@ -958,27 +958,44 @@ export async function markAttendanceAction(status: "present" | "leave") {
 
     const today = new Date().toISOString().split('T')[0]
 
-    // Find assignment for today
-    const assignment = await db.query.dailyAssignments.findFirst({
+    // Find assignment for today where this tech is a team member
+    const assignmentResults = await db.select({ id: dailyAssignmentsTable.id })
+        .from(dailyAssignmentsTable)
+        .innerJoin(masterTeamMembers, eq(dailyAssignmentsTable.masterTeamId, masterTeamMembers.masterTeamId))
+        .where(and(
+            eq(dailyAssignmentsTable.workDate, today),
+            eq(masterTeamMembers.technicianId, tech.id)
+        ))
+        .limit(1)
+
+    if (assignmentResults.length === 0) {
+        return { success: false, message: "No assignment found for you today. Please contact your supervisor." }
+    }
+
+    const assignmentId = assignmentResults[0].id
+
+    // Check if already exists
+    const existing = await db.query.attendance.findFirst({
         where: and(
-            eq(dailyAssignments.workDate, today),
-            // We need to link assignment to tech. But assignment is Team logic.
-            // Simplified: Find assignment where tech is member of MasterTeam? 
-            // Or just allow tech to check in if they have a Job?
-            // Architecture: Admin assigns Daily Team.
-            // Since we don't have DailyTeamMembers table yet (implied by Assignment -> Attendance),
-            // We just let them check in if they have a Job in 'In_Progress' or similar?
-            // Or just CREATE an attendance record freely?
-            // Best: Find ANY Active assignment for a Job they are lead of?
+            eq(attendance.dailyAssignmentId, assignmentId),
+            eq(attendance.technicianId, tech.id)
         )
     })
 
-    // Fallback: Just insert attendance if they are checking in. 
-    // BUT we need dailyAssignmentId.
-    // Let's find existing attendance or Create Ad-hoc assignment?
-    // Since Check-In on Job Page handles job-specific attendance,
-    // this global action is vague. Let's redirect them to use Job Check-in.
-    return { success: false, message: "Use the Check-In button on your Job details page." }
+    if (existing) {
+        await db.update(attendance)
+            .set({ status: status === 'present' ? 'Present' : 'Absent', checkInTime: new Date() })
+            .where(eq(attendance.id, existing.id))
+    } else {
+        await db.insert(attendance).values({
+            dailyAssignmentId: assignmentId,
+            technicianId: tech.id,
+            status: status === 'present' ? 'Present' : 'Absent',
+            checkInTime: new Date()
+        })
+    }
+
+    return { success: true, message: `Attendance marked as ${status}` }
 }
 
 export async function getTechnicianAttendanceAction(month?: string) {
@@ -994,7 +1011,16 @@ export async function getTechnicianAttendanceAction(month?: string) {
 
     if (!tech) return { success: false, data: [] }
 
-    const records = await db.select().from(attendance)
+    const records = await db.select({
+        id: attendance.id,
+        status: attendance.status,
+        checkInTime: attendance.checkInTime,
+        checkOutTime: attendance.checkOutTime,
+        date: dailyAssignmentsTable.workDate,
+        createdAt: attendance.createdAt
+    })
+        .from(attendance)
+        .innerJoin(dailyAssignmentsTable, eq(attendance.dailyAssignmentId, dailyAssignmentsTable.id))
         .where(eq(attendance.technicianId, tech.id))
         .orderBy(desc(attendance.createdAt))
 
@@ -1003,6 +1029,14 @@ export async function getTechnicianAttendanceAction(month?: string) {
 
 // Salary Actions
 export async function getSalaryDataAction(period: string) {
+    // period format: "Month Year" e.g., "January 2025"
+    const [monthName, year] = period.split(" ")
+    const monthMap: { [key: string]: number } = {
+        "January": 0, "February": 1, "March": 2, "April": 3, "May": 4, "June": 5,
+        "July": 6, "August": 7, "September": 8, "October": 9, "November": 10, "December": 11
+    }
+    const month = monthMap[monthName]
+
     // 1. Get all active technicians
     const allTechs = await db.select({
         id: technicians.id,
@@ -1018,14 +1052,22 @@ export async function getSalaryDataAction(period: string) {
     // 2. Calculate stats for each
     const salaryData = await Promise.all(allTechs.map(async (tech) => {
         const attendanceRecords = await db.select().from(attendance)
+            .innerJoin(dailyAssignmentsTable, eq(attendance.dailyAssignmentId, dailyAssignmentsTable.id))
             .where(
                 and(
                     eq(attendance.technicianId, tech.id),
-                    eq(attendance.status, 'present')
+                    eq(attendance.status, 'Present'),
+                    isNull(attendance.salaryDeducted) // Only unpaid ones
                 )
             )
 
-        const daysPresent = attendanceRecords.length;
+        // Filter by month/year if needed (simplified for now)
+        const filteredRecords = attendanceRecords.filter(r => {
+            const d = new Date(r.daily_assignments.workDate)
+            return d.getMonth() === month && d.getFullYear() === parseInt(year)
+        })
+
+        const daysPresent = filteredRecords.length;
         const rate = tech.dailyRate || 800;
         const net = daysPresent * rate;
 
@@ -1042,12 +1084,29 @@ export async function getSalaryDataAction(period: string) {
     }))
 
     return {
-        technicians: salaryData,
+        technicians: salaryData.filter(t => t.days > 0),
         summary: {
             totalPayable: salaryData.reduce((acc, curr) => acc + curr.net, 0),
-            totalTechs: salaryData.length,
+            totalTechs: salaryData.filter(t => t.days > 0).length,
             totalWorkDays: salaryData.reduce((acc, curr) => acc + curr.days, 0)
         }
+    }
+}
+
+export async function processSalaryPaymentAction(technicianIds: string[], period: string) {
+    // In a real app, this would create in-system transactions
+    // For now, we've marked attendance records as deducted
+    try {
+        await db.update(attendance)
+            .set({ salaryDeducted: true })
+            .where(and(
+                sql`${attendance.technicianId} IN ${technicianIds}`,
+                eq(attendance.status, 'Present')
+            ))
+
+        return { success: true, message: "Payment processed successfully" }
+    } catch (e) {
+        return { success: false, message: "Failed to process payment" }
     }
 }
 
@@ -1065,9 +1124,38 @@ export async function getRequestByIdAction(id: string) {
 
     const { request, company } = result[0];
 
-    // Fetch associated jobs to determine effective status
+    // Fetch associated jobs to determine effective status and technician info
     const associatedJobs = await db.select().from(jobs).where(eq(jobs.requestId, id));
     let effectiveStatus = request.status;
+    const activeJob = associatedJobs.find(j => j.status !== 'Cancelled');
+
+    let isRated = false;
+    let technicianId = null;
+    let technicianName = null;
+    let jobId = null;
+    let ratingScore = null;
+    let ratingReview = null;
+
+    if (activeJob) {
+        jobId = activeJob.id;
+        technicianId = activeJob.leadTechnicianId;
+        if (technicianId) {
+            const ratingRecord = await db.select()
+                .from(ratings)
+                .where(and(eq(ratings.jobId, jobId), eq(ratings.technicianId, technicianId)))
+                .limit(1);
+            isRated = ratingRecord.length > 0;
+            ratingScore = ratingRecord[0]?.overallScore;
+            ratingReview = ratingRecord[0]?.reviewText;
+
+            const techUser = await db.select({ name: users.name })
+                .from(users)
+                .innerJoin(technicians, eq(technicians.userId, users.id))
+                .where(eq(technicians.id, technicianId))
+                .limit(1);
+            technicianName = techUser[0]?.name;
+        }
+    }
 
     // If any job is In_Progress (and Request is not Completed/Cancelled), show In_Progress
     const hasActiveJob = associatedJobs.some(j => j.status === 'In_Progress');
@@ -1086,6 +1174,12 @@ export async function getRequestByIdAction(id: string) {
             serviceType: request.serviceType || "General",
             companyName: company?.companyName || "Unknown Company",
             companyLocation: company?.address || undefined,
+            technicianId,
+            technicianName,
+            jobId,
+            isRated,
+            ratingScore,
+            ratingReview
         }
     }
 }
@@ -1207,7 +1301,8 @@ export async function getJobByIdAction(id: string) {
             supervisor: req.supervisorName, // Changed from req.supervisor to req.supervisorName
             supervisorPhone: req.supervisorPhone,
             team: [],
-            status: job.status
+            status: job.status,
+            photos: req.photos || []
         }
     }
 }
@@ -1383,11 +1478,11 @@ export async function completeJobAction(jobId: string, signature: string) {
 
         if (jobRecord && jobRecord.requestId) {
             const allJobs = await db.select().from(jobs).where(eq(jobs.requestId, jobRecord.requestId))
-            const reallyAllCompleted = allJobs.every(j => j.status === 'Completed')
+            const allJobsCompleted = allJobs.every(j => j.id === jobId || j.status === 'Completed')
 
-            if (reallyAllCompleted) {
+            if (allJobsCompleted) {
                 await db.update(requests)
-                    .set({ status: "Completed" })
+                    .set({ status: "Completed", updatedAt: new Date() })
                     .where(eq(requests.id, jobRecord.requestId));
 
                 // Create notification for company
@@ -1607,5 +1702,151 @@ export async function markAllNotificationsAsReadAction() {
         return { success: true }
     } catch (e) {
         return { success: false }
+    }
+}
+
+export async function updateCompanyProfileAction(data: {
+    companyName?: string;
+    industryType?: string;
+    email?: string;
+    address?: string;
+    contactPerson?: string;
+    gstin?: string;
+    spokespersonPhone?: string;
+}) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false, message: "Not authenticated" }
+    const session = JSON.parse(sessionToken.value)
+
+    try {
+        await db.update(companies)
+            .set({
+                ...data,
+                updatedAt: new Date()
+            })
+            .where(eq(companies.userId, session.userId))
+
+        if (data.companyName) {
+            await db.update(users)
+                .set({ name: data.companyName, updatedAt: new Date() })
+                .where(eq(users.id, session.userId))
+        }
+
+        return { success: true, message: "Profile updated successfully" }
+    } catch (e) {
+        console.error("Update profile error:", e)
+        return { success: false, message: "Failed to update profile" }
+    }
+}
+
+export async function updateTechnicianProfileAction(data: {
+    name?: string;
+    primarySkill?: string;
+    address?: string;
+    experience?: number;
+    dob?: string;
+    gender?: string;
+    dailyRate?: number;
+    bankDetails?: any;
+}) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false, message: "Not authenticated" }
+    const session = JSON.parse(sessionToken.value)
+
+    try {
+        await db.update(technicians)
+            .set({
+                primarySkill: data.primarySkill,
+                address: data.address,
+                experience: data.experience,
+                dob: data.dob,
+                gender: data.gender,
+                dailyRate: data.dailyRate,
+                bankDetails: data.bankDetails,
+                updatedAt: new Date()
+            })
+            .where(eq(technicians.userId, session.userId))
+
+        if (data.name) {
+            await db.update(users)
+                .set({ name: data.name, updatedAt: new Date() })
+                .where(eq(users.id, session.userId))
+        }
+
+        return { success: true, message: "Profile updated successfully" }
+    } catch (e) {
+        console.error("Update profile error:", e)
+        return { success: false, message: "Failed to update profile" }
+    }
+}
+
+export async function submitRatingAction(jobId: string, technicianId: string, score: number, review?: string) {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { success: false, message: "Not authenticated" }
+    const session = JSON.parse(sessionToken.value)
+
+    try {
+        const company = await db.query.companies.findFirst({
+            where: eq(companies.userId, session.userId)
+        })
+
+        if (!company) return { success: false, message: "Company profile not found" }
+
+        // Record the rating
+        await db.insert(ratings).values({
+            jobId,
+            companyId: company.id,
+            technicianId,
+            overallScore: score,
+            reviewText: review || ""
+        })
+
+        // Update technician's average rating
+        const allRatings = await db.select({ score: ratings.overallScore })
+            .from(ratings)
+            .where(eq(ratings.technicianId, technicianId))
+
+        if (allRatings.length > 0) {
+            const sum = allRatings.reduce((acc, curr) => acc + curr.score, 0)
+            const average = sum / allRatings.length
+
+            await db.update(technicians)
+                .set({ rating: average })
+                .where(eq(technicians.id, technicianId))
+        }
+
+        return { success: true, message: "Rating submitted successfully" }
+    } catch (e) {
+        console.error("Submit rating error:", e)
+        return { success: false, message: "Failed to submit rating" }
+    }
+}
+
+export async function getFeedbackAction() {
+    try {
+        const result = await db.select({
+            id: ratings.id,
+            jobId: ratings.jobId,
+            score: ratings.overallScore,
+            review: ratings.reviewText,
+            companyName: companies.companyName,
+            technicianName: users.name,
+            serviceType: requests.serviceType,
+            createdAt: jobs.completedAt // Approximate date from job completion
+        })
+            .from(ratings)
+            .innerJoin(companies, eq(ratings.companyId, companies.id))
+            .innerJoin(technicians, eq(ratings.technicianId, technicians.id))
+            .innerJoin(users, eq(technicians.userId, users.id))
+            .innerJoin(jobs, eq(ratings.jobId, jobs.id))
+            .innerJoin(requests, eq(jobs.requestId, requests.id));
+
+        return { success: true, feedback: result }
+    } catch (e) {
+        console.error("Fetch feedback error:", e)
+        return { success: false, message: "Failed to fetch feedback" }
     }
 }

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { BottomNav } from "@/components/navigation/bottom-nav"
 import { api, Request } from "@/lib/api"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 import { Loader2, Bell, Search, Wrench, Clock, MapPin, Calendar, ArrowRight, Trash2 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { toast } from "sonner"
@@ -19,9 +20,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-export default function AdminRequestsPage() {
+function AdminRequestsContent() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<"new" | "assigned" | "in-progress" | "completed">("new")
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams?.get("tab") as any) || "new"
+  const [activeTab, setActiveTab] = useState<"new" | "assigned" | "in-progress" | "completed">(initialTab)
   const [requests, setRequests] = useState<{ [key: string]: Request[] }>({
     new: [],
     assigned: [],
@@ -266,5 +269,13 @@ export default function AdminRequestsPage() {
 
       <BottomNav active="jobs" role="admin" />
     </div>
+  )
+}
+
+export default function AdminRequestsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+      <AdminRequestsContent />
+    </Suspense>
   )
 }

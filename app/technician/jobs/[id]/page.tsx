@@ -145,6 +145,37 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
             <Phone className="w-5 h-5" />
           </a>
         </section>
+
+        {/* Reference Photos */}
+        {(job as any).photos && ((job as any).photos as string[]).filter((url: string) => url?.trim() !== "").length > 0 && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-2 mb-4 px-1">
+              <span className="w-1 h-4 bg-primary rounded-full" />
+              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Reference Photos</p>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1 snap-x">
+              {((job as any).photos as string[]).filter((url: string) => url?.trim() !== "").map((url: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="w-64 aspect-[4/3] rounded-[2rem] overflow-hidden glass border border-border/50 shrink-0 group active:scale-95 transition-all shadow-lg snap-center relative"
+                  onClick={() => window.open(url, '_blank')}
+                >
+                  <img
+                    src={url}
+                    alt={`Job photo ${idx + 1}`}
+                    className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://placehold.co/400x300/e2e8f0/64748b?text=Broken+Link"
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+                    <p className="text-[8px] font-black text-white uppercase tracking-[0.3em]">Tap to Enlarge</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Action Footer */}

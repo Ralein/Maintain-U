@@ -248,6 +248,11 @@ export const api = {
     return approvePasswordResetAction(userId)
   },
 
+  async getFeedback() {
+    const { getFeedbackAction } = await import("@/lib/actions")
+    return getFeedbackAction()
+  },
+
   async adminLogin(id: string, pass: string) {
     const { adminLoginAction } = await import("@/lib/actions")
     return adminLoginAction(id, pass)
@@ -282,6 +287,11 @@ export const api = {
     return getSalaryDataAction(period)
   },
 
+  async processSalaryPayment(technicianIds: string[], period: string) {
+    const { processSalaryPaymentAction } = await import("@/lib/actions")
+    return processSalaryPaymentAction(technicianIds, period)
+  },
+
   async getNotifications() {
     const { getNotificationsAction } = await import("@/lib/actions")
     return getNotificationsAction()
@@ -295,6 +305,10 @@ export const api = {
   async markAllNotificationsAsRead() {
     const { markAllNotificationsAsReadAction } = await import("@/lib/actions")
     return markAllNotificationsAsReadAction()
+  },
+  async submitRating(jobId: string, technicianId: string, score: number, review?: string) {
+    const { submitRatingAction } = await import("@/lib/actions")
+    return submitRatingAction(jobId, technicianId, score, review)
   },
 }
 

@@ -76,6 +76,7 @@ export const technicians = pgTable("technicians", {
     rejectionReason: text("rejection_reason"),
     approvedAt: timestamp("approved_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const requests = pgTable("requests", {

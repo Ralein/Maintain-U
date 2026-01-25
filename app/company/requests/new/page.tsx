@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { Zap, Settings, Wrench, Thermometer, Droplet, X, Loader2, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react"
+import { Zap, Settings, Wrench, Thermometer, Droplet, X, Loader2, ChevronLeft, ChevronRight, CheckCircle, Plus, Link } from "lucide-react"
 
 export default function NewRequestPage() {
   const router = useRouter()
@@ -160,14 +160,60 @@ export default function NewRequestPage() {
             />
 
             <div className="mb-8">
-              <label className="text-sm font-semibold mb-3 block">Add Photo URLs</label>
-              <textarea
-                placeholder="Enter photo URLs (comma separated)..."
-                className="w-full h-24 p-4 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none mb-2"
-                onChange={(e) => setFormData({ ...formData, photos: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
-              />
-              <p className="text-xs text-muted-foreground">
-                * Temporary: Enter direct image links (e.g. https://example.com/photo.jpg)
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold block">Issue Photos (URLs)</label>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, photos: [...prev.photos, ""] }))}
+                  className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
+                >
+                  <Plus className="w-3 h-3" /> Add More
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {formData.photos.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, photos: [""] }))}
+                    className="w-full py-8 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary hover:border-primary/50 transition-all bg-card/30"
+                  >
+                    <Plus className="w-6 h-6" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Add first photo link</span>
+                  </button>
+                ) : (
+                  formData.photos.map((url, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="url"
+                          placeholder="https://example.com/photo.jpg"
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-card/50 glass focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                          value={url}
+                          onChange={(e) => {
+                            const newPhotos = [...formData.photos]
+                            newPhotos[idx] = e.target.value
+                            setFormData({ ...formData, photos: newPhotos })
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newPhotos = formData.photos.filter((_, i) => i !== idx)
+                          setFormData({ ...formData, photos: newPhotos })
+                        }}
+                        className="p-3 text-red-500 hover:bg-red-500/10 rounded-xl transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-3 font-medium uppercase tracking-tighter">
+                * Note: Enter public direct image links for now. Dynamic uploads coming soon.
               </p>
             </div>
           </div>

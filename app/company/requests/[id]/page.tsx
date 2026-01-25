@@ -1,7 +1,8 @@
 "use client"
 
 import { BottomNav } from "@/components/navigation/bottom-nav"
-import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone, AlertTriangle, FileText, Briefcase } from "lucide-react"
+import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone, AlertTriangle, FileText, Briefcase, Star } from "lucide-react"
+import { toast } from "sonner"
 import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
@@ -10,8 +11,12 @@ import { formatTicketId } from "@/lib/utils"
 export default function RequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
-  const [request, setRequest] = useState<Request | null>(null)
+  const [request, setRequest] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [rating, setRating] = useState(0)
+  const [hover, setHover] = useState(0)
+  const [review, setReview] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -27,11 +32,26 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
       }
     }
     fetchData()
-
-    // Poll for status updates
-    const interval = setInterval(fetchData, 5000)
-    return () => clearInterval(interval)
   }, [id])
+
+  const handleRate = async () => {
+    if (rating === 0) return
+    setSubmitting(true)
+    try {
+      const res = await api.submitRating(request.jobId, request.technicianId, rating, review)
+      if (res.success) {
+        toast.success("Thank you for your feedback!")
+        const updated = await api.getRequestById(id)
+        if (updated.request) setRequest(updated.request)
+      } else {
+        toast.error("Failed to submit rating")
+      }
+    } catch (e) {
+      toast.error("An error occurred")
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -177,40 +197,35 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
           </div>
         </section>
 
-        {/* Assigned Team (Supervisor) */}
-        {request.supervisor && (
-          <section className="glass-card p-6 rounded-3xl">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-primary" />
-              Assigned Team
+        {/* Reference Photos */}
+        {request.photos && (request.photos as string[]).filter((url: string) => url?.trim() !== "").length > 0 && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-lg font-bold mb-4 flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-primary rounded-full" />
+                <span>Issue Photos</span>
+              </div>
+              <span className="text-[10px] font-black bg-muted px-2 py-1 rounded-full text-muted-foreground uppercase tracking-widest leading-none">
+                {(request.photos as string[]).filter((url: string) => url?.trim() !== "").length} Total
+              </span>
             </h2>
-            <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-2xl border border-border/50">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                {request.supervisor.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-sm">{request.supervisor}</p>
-                <p className="text-xs text-muted-foreground">Site Supervisor</p>
-              </div>
-              {request.supervisorPhone && (
-                <a href={`tel:${request.supervisorPhone}`} className="p-2.5 bg-green-500/10 text-green-600 rounded-xl hover:bg-green-500/20 transition-colors">
-                  <Phone className="w-5 h-5" />
-                </a>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Photos (if any) */}
-        {request.photos && request.photos.length > 0 && (
-          <section>
-            <h2 className="text-lg font-bold mb-4 px-1">Attached Photos</h2>
-            <div className="flex gap-3 overflow-x-auto pb-4 snap-x">
-              {request.photos.map((url: string, i: number) => (
-                <div key={i} className="flex-none w-40 aspect-square rounded-2xl bg-muted overflow-hidden relative snap-center shadow-lg">
-                  {/* In real app, use next/image with full url */}
-                  <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-muted">
-                    <span className="text-xs">Photo {i + 1}</span>
+            <div className="grid grid-cols-2 gap-4">
+              {(request.photos as string[]).filter((url: string) => url?.trim() !== "").map((url: string, idx: number) => (
+                <div
+                  key={idx}
+                  className="aspect-video relative rounded-2xl overflow-hidden glass border border-border/50 group cursor-pointer shadow-xl shadow-black/5 hover:shadow-primary/10 transition-all border-white/20 active:scale-[0.98]"
+                  onClick={() => window.open(url, '_blank')}
+                >
+                  <img
+                    src={url}
+                    alt={`Ticket photo ${idx + 1}`}
+                    className="object-cover w-full h-full transition-transform duration-1000 group-hover:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://placehold.co/600x400/f1f5f9/94a3b8?text=Broken+Link"
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                    <p className="text-[8px] font-black text-white uppercase tracking-[0.2em]">View Image</p>
                   </div>
                 </div>
               ))}
@@ -218,9 +233,100 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
           </section>
         )}
 
-      </div>
+        {/* Assigned Team (Supervisor) */}
+        {
+          request.supervisor && (
+            <section className="glass-card p-6 rounded-3xl">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                Assigned Team
+              </h2>
+              <div className="flex items-center gap-4 p-3 bg-muted/30 rounded-2xl border border-border/50">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                  {request.supervisor.charAt(0)}
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{request.supervisor}</p>
+                  <p className="text-xs text-muted-foreground">Site Supervisor</p>
+                </div>
+                {request.supervisorPhone && (
+                  <a href={`tel:${request.supervisorPhone}`} className="p-2.5 bg-green-500/10 text-green-600 rounded-xl hover:bg-green-500/20 transition-colors">
+                    <Phone className="w-5 h-5" />
+                  </a>
+                )}
+              </div>
+            </section>
+          )
+        }
+
+        {/* Ratings (Client Feedback) */}
+        {
+          request.status === "Completed" && !request.isRated && request.technicianId && (
+            <section className="glass-card p-6 rounded-3xl border-primary/20 shadow-xl shadow-primary/5 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-yellow-500/10 rounded-2xl text-yellow-500">
+                  <Star className="w-6 h-6 fill-current" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">Rate Service</h2>
+                  <p className="text-xs text-muted-foreground font-medium">How was {request.technicianName}'s work?</p>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-2 mb-8">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    onMouseEnter={() => setHover(star)}
+                    onMouseLeave={() => setHover(0)}
+                    onClick={() => setRating(star)}
+                    className={`p-1 transition-all duration-200 transform ${star <= (hover || rating) ? 'scale-110' : 'scale-100'}`}
+                  >
+                    <Star
+                      className={`w-10 h-10 ${star <= (hover || rating)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-muted-foreground/30'
+                        }`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <textarea
+                  value={review}
+                  onChange={(e) => setReview(e.target.value)}
+                  placeholder="Write a brief review (optional)..."
+                  className="w-full p-4 rounded-2xl bg-muted/30 border-border focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm min-h-[100px] transition-all"
+                />
+                <button
+                  onClick={handleRate}
+                  disabled={rating === 0 || submitting}
+                  className="w-full py-4 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {submitting ? "Submitting..." : "Submit Rating"}
+                </button>
+              </div>
+            </section>
+          )
+        }
+
+        {
+          request.isRated && (
+            <section className="glass-card p-6 rounded-3xl bg-green-500/5 border-green-500/10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-bold text-green-600 dark:text-green-400">Feedback Submitted</p>
+              </div>
+            </section>
+          )
+        }
+      </div >
 
       <BottomNav active="requests" role="company" />
-    </div>
+    </div >
   )
 }
