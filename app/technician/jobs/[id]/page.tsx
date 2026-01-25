@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { api, Job } from "@/lib/api"
 import { ArrowLeft, MapPin, Calendar, Clock, Phone, Loader2, PlayCircle, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
+import { formatTicketId } from "@/lib/utils"
 
 export default function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -74,7 +75,7 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
         </button>
         <div className="text-right">
           <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">Job Order</p>
-          <h1 className="text-sm font-black text-foreground mt-1">{job.id}</h1>
+          <h1 className="text-sm font-black text-foreground mt-1">{formatTicketId(job.id)}</h1>
         </div>
       </header>
 
@@ -82,10 +83,10 @@ export default function JobDetailsPage({ params }: { params: Promise<{ id: strin
         {/* Status Card */}
         <div className="flex justify-center mb-4">
           <div className={`px-6 py-2 rounded-2xl text-xs font-black uppercase tracking-widest border shadow-sm ${isCompleted
-              ? 'bg-green-500/10 text-green-600 border-green-500/20'
-              : isInProgress
-                ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-orange-500/5'
-                : 'bg-primary/10 text-primary border-primary/20'
+            ? 'bg-green-500/10 text-green-600 border-green-500/20'
+            : isInProgress
+              ? 'bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-orange-500/5'
+              : 'bg-primary/10 text-primary border-primary/20'
             }`}>
             {job.status.replace('_', ' ')}
           </div>

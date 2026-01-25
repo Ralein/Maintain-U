@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { api, Notification } from "@/lib/api"
 import { toast } from "sonner"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 export default function CompanyNotifications() {
     const router = useRouter()
@@ -64,37 +65,35 @@ export default function CompanyNotifications() {
     return (
         <div className="min-h-screen pb-32 app-gradient">
             {/* Header */}
-            <header className="sticky top-0 z-30 px-6 py-6 glass border-b-0 mb-6 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => router.back()} className="w-10 h-10 glass rounded-xl flex items-center justify-center hover:bg-muted/50 transition-all active:scale-90">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-black tracking-tight text-foreground">Notifications</h1>
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Real-time Updates</p>
-                    </div>
+            <header className="sticky top-0 z-30 px-6 py-4 glass border-b-0 mb-6 flex items-center justify-between transition-all">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+                    <p className="text-xs text-muted-foreground font-medium">Real-time Updates</p>
                 </div>
-                <button
-                    onClick={handleMarkAllAsRead}
-                    className="w-10 h-10 flex items-center justify-center glass hover:bg-primary/10 rounded-xl transition-all active:scale-95 text-primary"
-                    title="Mark all as read"
-                >
-                    <CheckCheck className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <button
+                        onClick={handleMarkAllAsRead}
+                        className="w-10 h-10 flex items-center justify-center hover:bg-muted/80 rounded-xl transition-colors ring-1 ring-border/50 active:scale-95 bg-background/50 shadow-sm text-primary"
+                        title="Mark all as read"
+                    >
+                        <CheckCheck className="w-5 h-5" />
+                    </button>
+                </div>
             </header>
 
             <main className="px-6 space-y-4">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-24 gap-4">
                         <div className="w-10 h-10 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-                        <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">Syncing alerts...</p>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Syncing alerts...</p>
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-32 px-10 text-center glass-card rounded-[2.5rem] border-dashed border-2">
                         <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-6">
                             <Bell className="w-10 h-10 text-muted-foreground/30" strokeWidth={1.5} />
                         </div>
-                        <h3 className="font-black text-xl text-foreground mb-2">All Caught Up!</h3>
+                        <h3 className="font-bold text-xl text-foreground mb-2">All Caught Up!</h3>
                         <p className="text-xs text-muted-foreground font-medium max-w-[200px] leading-relaxed">You have no new notifications at the moment.</p>
                     </div>
                 ) : (
@@ -112,14 +111,13 @@ export default function CompanyNotifications() {
 
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start mb-1.5">
-                                        <h3 className={`font-black text-sm leading-tight transition-colors ${!note.isRead ? "text-foreground group-hover:text-primary" : "text-muted-foreground"}`}>{note.title}</h3>
+                                        <h3 className={`font-bold text-sm leading-tight transition-colors ${!note.isRead ? "text-foreground group-hover:text-primary" : "text-muted-foreground"}`}>{note.title}</h3>
                                         {!note.isRead && (
                                             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                                         )}
                                     </div>
                                     <p className="text-xs font-medium text-muted-foreground leading-relaxed mb-3">{note.message}</p>
-
-                                    <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground uppercase tracking-wider">
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                                         <Clock className="w-3 h-3" />
                                         <span>{formatTime(note.createdAt)}</span>
                                     </div>
@@ -131,7 +129,7 @@ export default function CompanyNotifications() {
 
                         <div className="flex flex-col items-center gap-4 py-12">
                             <div className="h-px w-12 bg-border/50" />
-                            <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em]">End of Notifications</p>
+                            <p className="text-xs text-muted-foreground font-bold uppercase tracking-[0.3em]">End of Notifications</p>
                         </div>
                     </div>
                 )}

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Loader2, Bell, Search, Wrench, Clock, MapPin, Calendar, ArrowRight, Trash2 } from "lucide-react"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { toast } from "sonner"
+import { formatTicketId } from "@/lib/utils"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +74,7 @@ export default function AdminRequestsPage() {
   const currentList = requests[activeTab].filter(r =>
     (r.companyName || "").toLowerCase().includes(search.toLowerCase()) ||
     r.id.toLowerCase().includes(search.toLowerCase()) ||
+    formatTicketId(r.id).toLowerCase().includes(search.toLowerCase()) ||
     (r.serviceType || "").toLowerCase().includes(search.toLowerCase())
   )
 
@@ -188,7 +190,7 @@ export default function AdminRequestsPage() {
                       <div>
                         <p className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">{req.companyName || req.companyId}</p>
                         <p className="text-xs text-muted-foreground font-mono tracking-wider mt-0.5">
-                          {req.id}
+                          {formatTicketId(req.id)}
                         </p>
                       </div>
                     </div>

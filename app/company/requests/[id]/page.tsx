@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, ArrowLeft, Clock, Calendar, MapPin, User, Phone,
 import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { formatTicketId } from "@/lib/utils"
 
 export default function RequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -114,7 +115,7 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight mt-2">{request.description}</h1>
-          <p className="text-muted-foreground font-mono text-xs">ID: {request.id}</p>
+          <p className="text-muted-foreground font-mono text-xs">Ticket: {formatTicketId(request.id)}</p>
         </div>
       </div>
 

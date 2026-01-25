@@ -5,7 +5,8 @@ import { BottomNav } from "@/components/navigation/bottom-nav"
 import { Zap, Wrench, ArrowRight } from "lucide-react"
 import { api } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner" // Assuming toast is imported from sonner
+import { toast } from "sonner"
+import { formatTicketId } from "@/lib/utils"
 
 export default function TechnicianJobsPage() {
   const router = useRouter()
@@ -194,7 +195,7 @@ export default function TechnicianJobsPage() {
                           </div>
                           <div>
                             <p className="font-black text-lg leading-none group-hover:text-primary transition-colors">{job.company}</p>
-                            <p className="text-[10px] font-mono font-bold text-muted-foreground mt-1 tracking-tighter uppercase">{job.id}</p>
+                            <p className="text-[10px] font-mono font-bold text-muted-foreground mt-1 tracking-tighter uppercase">{formatTicketId(job.id)}</p>
                           </div>
                         </div>
                         <span className={`px-3 py-1 text-[10px] font-black rounded-full uppercase tracking-widest border transition-colors ${(job.status === 'In_Progress' || job.status === 'In Progress')

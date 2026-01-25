@@ -8,6 +8,7 @@ import { BiSearch, BiFilter, BiPlus, BiLoaderAlt } from "react-icons/bi"
 import { Zap, Wrench, Thermometer, Settings, Droplet } from "lucide-react"
 import { api, Request } from "@/lib/api"
 import { toast } from "sonner"
+import { formatTicketId } from "@/lib/utils"
 
 export default function CompanyRequestsPage() {
   const router = useRouter()
@@ -147,7 +148,7 @@ export default function CompanyRequestsPage() {
                     </div>
                     <div>
                       <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{req.serviceType}</p>
-                      <p className="text-xs text-muted-foreground font-mono font-medium">{req.id}</p>
+                      <p className="text-xs text-muted-foreground font-mono font-medium">{formatTicketId(req.id)}</p>
                     </div>
                   </div>
 

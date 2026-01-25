@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { CheckCircle2, User, Loader2, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
+import { formatTicketId } from "@/lib/utils"
 
 export default function AssignTeamPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -60,7 +61,7 @@ export default function AssignTeamPage({ params }: { params: Promise<{ id: strin
                     <ArrowLeft className="w-5 h-5" />
                 </button>
                 <h1 className="text-2xl font-bold tracking-tight">Assign Team</h1>
-                <p className="text-muted-foreground text-sm font-medium">Select technicians for Request {id}</p>
+                <p className="text-muted-foreground text-sm font-medium">Select technicians for Request {formatTicketId(id)}</p>
             </div>
 
             <main className="px-6">

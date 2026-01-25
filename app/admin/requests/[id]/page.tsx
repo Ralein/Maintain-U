@@ -5,6 +5,7 @@ import { CheckCircle2, Loader2, ArrowLeft, Users } from "lucide-react"
 import { useEffect, useState, use } from "react"
 import { api, Request } from "@/lib/api"
 import { useRouter } from "next/navigation"
+import { formatTicketId } from "@/lib/utils"
 
 export default function AdminRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
@@ -53,7 +54,7 @@ export default function AdminRequestDetailsPage({ params }: { params: Promise<{ 
                     <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold">{request.id}</h1>
+                    <h1 className="text-2xl font-bold">{formatTicketId(request.id)}</h1>
                 </div>
                 <div className="mt-2 flex gap-2">
                     <span className={`px-3 py-1 rounded-full text-sm font-semibold ${request.status === 'Completed' ? 'bg-green-100 text-green-700' :
