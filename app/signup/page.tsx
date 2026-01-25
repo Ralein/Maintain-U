@@ -13,7 +13,7 @@ function SignupContent() {
   const searchParams = useSearchParams()
   const role = searchParams?.get("role") as "company" | "technician" || "company"
 
-  const [phone, setPhone] = useState("")
+  const [phone, setPhone] = useState(searchParams?.get("phone") || "")
   const [step, setStep] = useState<Step>("phone")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -169,20 +169,20 @@ function SignupContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900">
-      <div className="w-full max-w-md glass p-8 rounded-3xl shadow-xl">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900">
+      <div className="w-full max-w-md glass p-6 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xl">
         {/* Header content based on step */}
-        <div className="mb-8 space-y-3 text-center">
-          <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+        <div className="mb-6 sm:mb-8 space-y-2 sm:space-y-3 text-center">
+          <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1 sm:mb-2">
             {role === "technician" ? "Technician Registration" : "Company Registration"}
           </span>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {step === "phone" && "Get Started"}
             {step === "verify-required" && "Admin Verification"}
             {step === "waiting" && "Verification Pending"}
             {step === "approved" && "Verified!"}
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {step === "phone" && "Enter your phone number to begin"}
             {step === "verify-required" && "One-time admin approval required"}
             {step === "waiting" && "Please wait for approval"}
@@ -192,24 +192,24 @@ function SignupContent() {
 
         {step === "approved" ? (
           <div className="space-y-6 text-center animate-in fade-in duration-300">
-            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-green-50 dark:ring-green-950/20">
-              <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-green-50 dark:ring-green-950/20">
+              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-green-600 dark:text-green-400" />
             </div>
 
-            <div className="space-y-3">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">Account Approved!</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+            <div className="space-y-2 sm:space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Account Approved!</h2>
+              <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
                 Your OTP is being entered automatically...
               </p>
             </div>
 
             {/* OTP Animation Boxes */}
-            <div className="flex justify-center gap-3 my-8 min-h-[4rem]">
+            <div className="flex justify-center gap-2 sm:gap-3 my-6 sm:my-8 min-h-[3.5rem] sm:min-h-[4rem]">
               {otpDigits.map((digit, index) => (
                 digit ? (
                   <div
                     key={index}
-                    className={`w-12 h-16 rounded-2xl border flex items-center justify-center text-2xl font-bold transition-all duration-300 ${index === animatingIndex
+                    className={`w-10 h-14 sm:w-12 sm:h-16 rounded-xl sm:rounded-2xl border flex items-center justify-center text-xl sm:text-2xl font-bold transition-all duration-300 ${index === animatingIndex
                       ? "border-primary bg-primary/10 text-primary scale-110 ring-4 ring-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.3)]"
                       : "border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.2)]"
                       }`}
@@ -222,22 +222,22 @@ function SignupContent() {
           </div>
         ) : step === "waiting" ? (
           <div className="space-y-6 text-center animate-in fade-in duration-300">
-            <div className="w-20 h-20 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-orange-50 dark:ring-orange-950/20">
-              <Clock className="w-10 h-10 text-orange-600 dark:text-orange-400 animate-pulse" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-orange-50 dark:ring-orange-950/20">
+              <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-orange-600 dark:text-orange-400 animate-pulse" />
             </div>
-            <div className="space-y-3">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">Verification In Progress</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Your account is currently under review by our administrators. Please wait here while we verify your details.
+            <div className="space-y-2 sm:space-y-3">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Verification In Progress</h2>
+              <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed px-2">
+                Your account is currently under review. Please wait here while we verify your details.
               </p>
             </div>
-            <div className="flex gap-3 items-center justify-center text-xs text-muted-foreground pt-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            <div className="flex gap-2 sm:gap-3 items-center justify-center text-[10px] sm:text-xs text-muted-foreground pt-1 sm:pt-2">
+              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-500 rounded-full animate-pulse"></div>
               <span>Checking for approval...</span>
             </div>
             <button
               onClick={resetFlow}
-              className="w-full py-3 px-6 rounded-xl bg-white dark:bg-card border border-border hover:bg-muted/50 transition-all font-semibold flex items-center justify-center gap-2 mt-4"
+              className="w-full py-2.5 sm:py-3 px-6 rounded-xl bg-white dark:bg-card border border-border hover:bg-muted/50 transition-all text-sm sm:text-base font-semibold flex items-center justify-center gap-2 mt-4"
             >
               <Home className="w-4 h-4" />
               Back
@@ -245,16 +245,16 @@ function SignupContent() {
           </div>
         ) : step === "verify-required" ? (
           <div className="space-y-6 text-center animate-in fade-in duration-300">
-            <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-blue-50 dark:ring-blue-950/20">
-              <ShieldCheck className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto ring-8 ring-blue-50 dark:ring-blue-950/20">
+              <ShieldCheck className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600 dark:text-blue-400" />
             </div>
 
-            <div className="bg-white/50 dark:bg-card/50 rounded-2xl p-4 text-sm text-left border border-border/50">
+            <div className="bg-white/50 dark:bg-card/50 rounded-2xl p-4 text-xs sm:text-sm text-left border border-border/50">
               <div className="flex gap-3 items-center mb-3">
                 <span className="font-semibold">Phone Number:</span>
                 <span className="font-mono text-muted-foreground">+91 {phone}</span>
               </div>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground text-[10px] sm:text-xs">
                 Click submit to send your request to the admin for approval.
               </p>
             </div>
@@ -262,7 +262,7 @@ function SignupContent() {
             <button
               onClick={handleSubmitForVerification}
               disabled={isLoading}
-              className="w-full py-3.5 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+              className="w-full py-3 sm:py-3.5 px-6 rounded-xl bg-primary text-white text-sm sm:text-base font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               Submit for Verification
@@ -271,17 +271,17 @@ function SignupContent() {
 
             <button
               onClick={resetFlow}
-              className="w-full py-3 px-6 rounded-xl bg-white dark:bg-card border border-border hover:bg-muted/50 transition-all font-semibold flex items-center justify-center gap-2"
+              className="w-full py-2.5 sm:py-3 px-6 rounded-xl bg-white dark:bg-card border border-border hover:bg-muted/50 transition-all text-sm sm:text-base font-semibold flex items-center justify-center gap-2"
             >
               Back
             </button>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium ml-1">Phone Number</label>
-              <div className="flex gap-3">
-                <div className="px-4 py-3 rounded-xl border border-border bg-muted/50 font-semibold whitespace-nowrap text-muted-foreground">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="text-xs sm:text-sm font-medium ml-1">Phone Number</label>
+              <div className="flex gap-2 sm:gap-3">
+                <div className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-border bg-muted/50 text-sm sm:text-base font-semibold whitespace-nowrap text-muted-foreground">
                   +91
                 </div>
                 <input
@@ -289,7 +289,7 @@ function SignupContent() {
                   placeholder="98765 43210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  className="flex-1 px-4 py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:bg-white dark:focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium tracking-wide"
+                  className="flex-1 px-4 py-2.5 sm:py-3 rounded-xl border border-border bg-white/50 dark:bg-card/50 focus:bg-white dark:focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm sm:text-base font-medium tracking-wide"
                   maxLength={10}
                 />
               </div>
@@ -298,13 +298,14 @@ function SignupContent() {
             <button
               onClick={handleGetOTP}
               disabled={phone.length !== 10 || isLoading}
-              className="w-full py-3.5 px-6 rounded-xl bg-primary text-white font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+              className="w-full py-3 sm:py-3.5 px-6 rounded-xl bg-primary text-white text-sm sm:text-base font-bold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               {isLoading ? "Checking..." : "Get OTP"}
             </button>
           </div>
-        )}
+        )
+        }
       </div>
     </div>
   )
