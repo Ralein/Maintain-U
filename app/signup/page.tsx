@@ -16,6 +16,12 @@ function SignupContent() {
   const [phone, setPhone] = useState(searchParams?.get("phone") || "")
   const [name, setName] = useState("")
   const [resume, setResume] = useState("")
+  // Bank Details
+  const [bankName, setBankName] = useState("")
+  const [accountNumber, setAccountNumber] = useState("")
+  const [ifsc, setIfsc] = useState("")
+  const [upi, setUpi] = useState("")
+
   const [step, setStep] = useState<Step>("phone")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -135,14 +141,24 @@ function SignupContent() {
 
   const handleDetailsSubmit = () => {
     if (!name.trim()) { toast.error("Please enter your name"); return; }
-    if (role === 'technician' && !resume.trim()) { toast.error("Please provide a resume link"); return; }
+    if (role === 'technician') {
+      if (!resume.trim()) { toast.error("Please provide a resume link"); return; }
+      if (!bankName.trim()) { toast.error("Please enter bank name"); return; }
+      if (!accountNumber.trim()) { toast.error("Please enter account number"); return; }
+      if (!ifsc.trim()) { toast.error("Please enter IFSC code"); return; }
+    }
     setStep("verify-required")
   }
 
   const handleSubmitForVerification = async () => {
     setIsLoading(true)
     try {
-      const res = await api.sendOTP(phone, role, { name, resume }) // Pass details
+      const details = {
+        name,
+        resume,
+        bankDetails: { bankName, accountNumber, ifsc, upi }
+      }
+      const res = await api.sendOTP(phone, role, details)
 
       if (res.error === 'pending' || (res.success === false && res.message.includes("pending"))) {
         toast.info(res.message || "Account submitted for verification")
@@ -284,6 +300,56 @@ function SignupContent() {
                   className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
                 />
                 <p className="text-[10px] text-muted-foreground ml-1">Provide a link to your CV or Portfolio (Google Drive, LinkedIn, etc.)</p>
+              </div>
+
+              <div className="py-2">
+                <div className="h-px w-full bg-border/50 border-t border-dashed border-border" />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase text-muted-foreground tracking-widest pl-1">Bank Information</h3>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm font-medium ml-1">Bank Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. State Bank of India"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm font-medium ml-1">Account Number</label>
+                  <input
+                    type="text"
+                    placeholder="00000000000"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-medium ml-1">IFSC Code</label>
+                    <input
+                      type="text"
+                      placeholder="SBIN0000"
+                      value={ifsc}
+                      onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+                      className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm uppercase"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs sm:text-sm font-medium ml-1">UPI ID (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="user@upi"
+                      value={upi}
+                      onChange={(e) => setUpi(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

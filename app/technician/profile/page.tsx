@@ -201,7 +201,7 @@ export default function TechnicianProfile() {
             <BottomNav active="profile" role="technician" />
 
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
-                <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md rounded-3xl p-6 overflow-hidden">
+                <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-bold">Edit Profile</DialogTitle>
                     </DialogHeader>

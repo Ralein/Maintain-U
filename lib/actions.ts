@@ -8,7 +8,7 @@ import { cookies } from "next/headers"
 // Helper to simulate delay if requested, or just remove locally
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-export async function sendOTPAction(phone: string, inputRole?: "company" | "technician", details?: { name?: string, resume?: string }) {
+export async function sendOTPAction(phone: string, inputRole?: "company" | "technician", details?: { name?: string, resume?: string, bankDetails?: any }) {
     // Check if user exists first
     const existingUsers = await db.select().from(users).where(eq(users.phone, phone)).limit(1)
 
@@ -28,17 +28,21 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
             }
 
             // If resume provided, ensure technician record exists
-            if (details?.resume && (user.role === 'technician' || inputRole === 'technician')) {
+            if ((details?.resume || details?.bankDetails) && (user.role === 'technician' || inputRole === 'technician')) {
                 const existingTech = await db.query.technicians.findFirst({ where: eq(technicians.userId, user.id) });
                 if (existingTech) {
                     await db.update(technicians)
-                        .set({ documents: { ...(existingTech.documents as any), resume: details.resume } })
+                        .set({
+                            documents: { ...(existingTech.documents as any), ...(details?.resume ? { resume: details.resume } : {}) },
+                            bankDetails: details?.bankDetails ? details.bankDetails : existingTech.bankDetails
+                        })
                         .where(eq(technicians.id, existingTech.id));
                 } else {
                     await db.insert(technicians).values({
                         userId: user.id,
                         status: 'Pending',
-                        documents: { resume: details.resume }
+                        documents: details?.resume ? { resume: details.resume } : {},
+                        bankDetails: details?.bankDetails
                     });
                 }
             }
@@ -84,11 +88,12 @@ export async function sendOTPAction(phone: string, inputRole?: "company" | "tech
             }).returning();
 
             // If resume provided, ensure technician record exists
-            if (details?.resume && role === 'technician') {
+            if ((details?.resume || details?.bankDetails) && role === 'technician') {
                 await db.insert(technicians).values({
                     userId: newUser.id,
                     status: 'Pending',
-                    documents: { resume: details.resume }
+                    documents: details?.resume ? { resume: details.resume } : {},
+                    bankDetails: details?.bankDetails
                 });
             }
 
