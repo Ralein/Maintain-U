@@ -141,6 +141,16 @@ export default function AdminRequestDetailsPage({ params }: { params: Promise<{ 
                 </div>
             )}
 
+            {/* Signature Section */}
+            {(request as any).signatureUrl && (
+                <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <h2 className="text-lg font-bold mb-4">Customer Signature</h2>
+                    <div className="p-6 bg-white rounded-2xl border border-border shadow-sm flex flex-col items-center">
+                        <img src={(request as any).signatureUrl} alt="Customer Signature" className="max-h-48 object-contain" />
+                    </div>
+                </div>
+            )}
+
             {/* Client Feedback Section */}
             {(request as any).isRated && (
                 <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

@@ -228,9 +228,35 @@ export const api = {
     return assignTeamAction(jobId, techIds, leadId)
   },
 
-  async createDailyRoster(techIds: string[]) {
+  async createDailyRoster(techIds: string[], date?: string) {
     const { createDailyRosterAction } = await import("@/lib/actions")
-    return createDailyRosterAction(techIds)
+    return createDailyRosterAction(techIds, date)
+  },
+
+  async updateMasterTeam(techIds: string[]) {
+    const { updateMasterTeamAction } = await import("@/lib/actions")
+    return updateMasterTeamAction(techIds)
+  },
+
+  async getMasterTeam() {
+    const { getMasterTeamAction } = await import("@/lib/actions")
+    return getMasterTeamAction()
+  },
+
+  async getAvailableReplacements() {
+    const { getAvailableReplacementsAction } = await import("@/lib/actions")
+    return getAvailableReplacementsAction()
+  },
+
+
+  async getTechnicianInvite() {
+    const { getTechnicianInviteAction } = await import("@/lib/actions")
+    return getTechnicianInviteAction()
+  },
+
+  async respondToInvite(inviteId: string, accept: boolean) {
+    const { respondToMasterTeamInviteAction } = await import("@/lib/actions")
+    return respondToMasterTeamInviteAction(inviteId, accept)
   },
 
   async getTechnicians(filters?: string) {

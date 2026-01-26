@@ -259,6 +259,22 @@ export default function RequestDetailsPage({ params }: { params: Promise<{ id: s
           )
         }
 
+        {/* Signature Section */}
+        {request.signatureUrl && (
+          <section className="glass-card p-6 rounded-3xl">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Captured Signature
+            </h2>
+            <div className="bg-white rounded-xl p-4 border border-border flex flex-col items-center">
+              <img src={request.signatureUrl} alt="Customer Signature" className="max-h-40 object-contain" />
+              <p className="text-xs text-muted-foreground mt-2 border-t pt-2 w-full text-center">
+                Signed on {request.completedAt ? new Date(request.completedAt).toLocaleString() : 'Completion'}
+              </p>
+            </div>
+          </section>
+        )}
+
         {/* Ratings (Client Feedback) */}
         {
           request.status === "Completed" && !request.isRated && request.technicianId && (

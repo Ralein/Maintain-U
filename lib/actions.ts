@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db"
 import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable, notifications } from "@/db/schema"
-import { eq, or, and, desc, isNull, sql } from "drizzle-orm"
+import { eq, or, and, desc, isNull, sql, ne } from "drizzle-orm"
 import { cookies } from "next/headers"
 
 // Helper to simulate delay if requested, or just remove locally
@@ -1238,7 +1238,8 @@ export async function getRequestByIdAction(id: string) {
             jobId,
             isRated,
             ratingScore,
-            ratingReview
+            ratingReview,
+            signatureUrl: activeJob?.signatureUrl || associatedJobs.find(j => j.signatureUrl)?.signatureUrl // Expose signature
         }
     }
 }
@@ -1556,46 +1557,39 @@ async function getOrCreateStandbyJob() {
     return standbyJob.id;
 }
 
-export async function createDailyRosterAction(techIds: string[]) {
+export async function createDailyRosterAction(techIds: string[], date?: string) {
     try {
         const jobId = await getOrCreateStandbyJob();
-        const today = new Date().toISOString().split('T')[0];
+        const targetDate = date || new Date().toISOString().split('T')[0];
         let count = 0;
 
+        // Fetch Master Team IDs to identify replacements
+        const masterTeam = await db.query.masterTeams.findFirst({
+            where: eq(masterTeams.jobId, jobId)
+        });
+        const masterMemberIds = masterTeam ?
+            (await db.select({ id: masterTeamMembers.technicianId }).from(masterTeamMembers).where(eq(masterTeamMembers.masterTeamId, masterTeam.id))).map(m => m.id)
+            : [];
+
         for (const techId of techIds) {
-            // Check if already has assignment for today
-            // We use dailyAssignments to track 'Work Date'
-            // We can have multiple assignments, but for 'Roster' we ensure at least one.
-
-            // Check active assignment?
-            // Simplified: Just create a daily assignment linked to the Standby Job if none exists for *this job* today.
-            // Ideally we check if they are working on *any* job. 
-            // If they are selected here, we force them into Standby if they are free?
-            // Let's just create an assignment to Standby.
-
-            // Deduplicate: Check if tech has assignment for this job today
+            // Check for dailyAssignment
             const existing = await db.query.dailyAssignments.findFirst({
                 where: and(
                     eq(dailyAssignments.jobId, jobId),
-                    eq(dailyAssignments.workDate, today) // Exact check requires string match if date is saved as string or date type comparison
+                    eq(dailyAssignments.workDate, targetDate)
                 )
             });
 
-            // Wait, dailyAssignments doesn't have techId. Attendance does.
-            // dailyAssignments groups attendance? Or creates a slot?
-            // Schema: dailyAssignments has `jobId`. `attendance` has `dailyAssignmentId` + `technicianId`.
-
-            // So we need a dailyAssignment for the Standby Job for Today.
             let dailyAssignment = existing;
             if (!dailyAssignment) {
                 [dailyAssignment] = await db.insert(dailyAssignments).values({
                     jobId,
-                    workDate: today,
+                    workDate: targetDate,
                     status: 'Active'
                 }).returning();
             }
 
-            // Now check attendance
+            // Check attendance
             const existingAttendance = await db.query.attendance.findFirst({
                 where: and(
                     eq(attendance.dailyAssignmentId, dailyAssignment.id),
@@ -1604,18 +1598,23 @@ export async function createDailyRosterAction(techIds: string[]) {
             })
 
             if (!existingAttendance) {
+                const isReplacement = !masterMemberIds.includes(techId);
+
                 await db.insert(attendance).values({
                     dailyAssignmentId: dailyAssignment.id,
                     technicianId: techId,
-                    status: 'Present',
-                    checkInTime: new Date(),
-                    locationCheckIn: JSON.stringify({ lat: 12.9716, lng: 77.5946, address: "HQ Check-in" }) // Auto check-in for roster
+                    status: isReplacement ? 'Replacement' : 'Present', // Use explicit status
+                    // Only set checkInTime if it's today, otherwise it's just a plan
+                    checkInTime: targetDate === new Date().toISOString().split('T')[0] ? new Date() : null,
+                    locationCheckIn: null // Clear location for future
                 })
 
-                // Update Tech Status
-                await db.update(technicians)
-                    .set({ status: 'Available' })
-                    .where(eq(technicians.id, techId));
+                // Only update tech status if it's today
+                if (targetDate === new Date().toISOString().split('T')[0]) {
+                    await db.update(technicians)
+                        .set({ status: 'Available' })
+                        .where(eq(technicians.id, techId));
+                }
 
                 count++;
             }
@@ -1625,6 +1624,203 @@ export async function createDailyRosterAction(techIds: string[]) {
     } catch (e) {
         console.error("Roster error:", e);
         return { success: false, message: "Failed to create roster" };
+    }
+}
+
+export async function getMasterTeamAction() {
+    try {
+        const jobId = await getOrCreateStandbyJob();
+        const masterTeam = await db.query.masterTeams.findFirst({
+            where: eq(masterTeams.jobId, jobId)
+        });
+
+        if (!masterTeam) return { members: [] };
+
+        const members = await db.select({
+            technicianId: masterTeamMembers.technicianId,
+            status: masterTeamMembers.status,
+            user: users,
+            tech: technicians
+        })
+            .from(masterTeamMembers)
+            .where(eq(masterTeamMembers.masterTeamId, masterTeam.id))
+            .innerJoin(technicians, eq(masterTeamMembers.technicianId, technicians.id))
+            .innerJoin(users, eq(technicians.userId, users.id));
+
+        return {
+            members: members.map(m => ({
+                id: m.technicianId,
+                name: m.user.name || m.user.phone,
+                phone: m.user.phone,
+                skill: m.tech.primarySkill,
+                rating: m.tech.rating,
+                status: m.status
+            }))
+        };
+    } catch (e) {
+        console.error("Get master team error:", e);
+        return { members: [] };
+    }
+}
+
+export async function getAvailableReplacementsAction() {
+    try {
+        const jobId = await getOrCreateStandbyJob();
+        const masterTeam = await db.query.masterTeams.findFirst({
+            where: eq(masterTeams.jobId, jobId)
+        });
+
+        const masterTeamMembersList = masterTeam
+            ? await db.select({ id: masterTeamMembers.technicianId })
+                .from(masterTeamMembers)
+                .where(eq(masterTeamMembers.masterTeamId, masterTeam.id))
+            : [];
+
+        const masterIds = masterTeamMembersList.map(m => m.id);
+
+        const replacements = await db.select({
+            techId: technicians.id,
+            user: users,
+            tech: technicians
+        })
+            .from(technicians)
+            .leftJoin(users, eq(technicians.userId, users.id))
+            .where(
+                and(
+                    eq(users.status, 'active'), // Only active users
+                    // Filter out master team members
+                    masterIds.length > 0 ? sql`${technicians.id} NOT IN ${masterIds}` : undefined
+                )
+            );
+
+        return {
+            replacements: replacements.map(r => ({
+                id: r.techId,
+                name: r.user?.name || r.user?.phone || "Unknown",
+                phone: r.user?.phone,
+                skill: r.tech.primarySkill,
+                rating: r.tech.rating,
+                status: r.tech.status
+            }))
+        };
+    } catch (e) {
+        console.error("Get replacements error:", e);
+        return { replacements: [] };
+    }
+}
+
+export async function updateMasterTeamAction(techIds: string[]) {
+    try {
+        const jobId = await getOrCreateStandbyJob();
+
+        let masterTeam = await db.query.masterTeams.findFirst({
+            where: eq(masterTeams.jobId, jobId)
+        });
+
+        if (!masterTeam) {
+            [masterTeam] = await db.insert(masterTeams).values({
+                jobId,
+                status: 'Active'
+            }).returning();
+        }
+
+        // Get existing members
+        const existingMembers = await db.select().from(masterTeamMembers)
+            .where(eq(masterTeamMembers.masterTeamId, masterTeam.id));
+
+        const existingIds = existingMembers.map(m => m.technicianId);
+
+        // Add new members
+        const toAdd = techIds.filter(id => !existingIds.includes(id));
+        if (toAdd.length > 0) {
+            await db.insert(masterTeamMembers).values(
+                toAdd.map(id => ({
+                    masterTeamId: masterTeam!.id,
+                    technicianId: id,
+                    status: 'Invited' // Changed from Accepted to Invited
+                }))
+            );
+
+            // Create notification for invited techs
+            // We need userId for notification.
+            const techs = await db.select({ id: technicians.id, userId: technicians.userId })
+                .from(technicians)
+                .where(sql`${technicians.id} IN ${toAdd}`);
+
+            for (const t of techs) {
+                await createNotification(
+                    t.userId,
+                    'System',
+                    'Master Team Invitation',
+                    'You have been invited to join the Master Team for daily operations.',
+                    '/technician/dashboard'
+                );
+            }
+        }
+
+        // Identify removed members (optional: distinct from 'Removed' status, we might just want to 'Remove' them from list)
+        // User wants to "choose technicians to be included".
+        // If not selected, we should remove them.
+        const toRemove = existingIds.filter(id => !techIds.includes(id));
+        if (toRemove.length > 0) {
+            await db.delete(masterTeamMembers)
+                .where(and(
+                    eq(masterTeamMembers.masterTeamId, masterTeam.id),
+                    sql`${masterTeamMembers.technicianId} IN ${toRemove}`
+                ));
+        }
+
+        return { success: true };
+    } catch (e) {
+        console.error("Update master team error:", e);
+    }
+}
+
+export async function getTechnicianInviteAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { invite: null }
+    const session = JSON.parse(sessionToken.value)
+
+    try {
+        const tech = await db.query.technicians.findFirst({
+            where: eq(technicians.userId, session.userId)
+        })
+        if (!tech) return { invite: null }
+
+        // Find pending invite (Invited status)
+        const invite = await db.select({
+            id: masterTeamMembers.id,
+            status: masterTeamMembers.status,
+            createdAt: masterTeamMembers.addedAt
+        })
+            .from(masterTeamMembers)
+            .where(
+                and(
+                    eq(masterTeamMembers.technicianId, tech.id),
+                    eq(masterTeamMembers.status, 'Invited')
+                )
+            )
+            .limit(1);
+
+        return { invite: invite[0] || null }
+    } catch (e) {
+        return { invite: null }
+    }
+}
+
+export async function respondToMasterTeamInviteAction(inviteId: string, accept: boolean) {
+    try {
+        await db.update(masterTeamMembers)
+            .set({
+                status: accept ? 'Accepted' : 'Declined',
+                // Maybe update addedAt if accepted? Keep addedAt as invite time.
+            })
+            .where(eq(masterTeamMembers.id, inviteId));
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to respond" }
     }
 }
 
@@ -1670,28 +1866,37 @@ export async function completeJobAction(jobId: string, signature: string) {
         })
 
         if (jobRecord && jobRecord.requestId) {
-            const allJobs = await db.select().from(jobs).where(eq(jobs.requestId, jobRecord.requestId))
-            const allJobsCompleted = allJobs.every(j => j.id === jobId || j.status === 'Completed')
+            // Update ALL jobs for this request to Completed + Signature
+            // This satisfies "select one user and get sign not necessarily all user need to get sign"
+            // Assuming this action marks the whole TEAM effort as complete.
+            await db.update(jobs)
+                .set({
+                    status: "Completed",
+                    completedAt: new Date(),
+                    signatureUrl: signature
+                })
+                .where(and(
+                    eq(jobs.requestId, jobRecord.requestId),
+                    ne(jobs.status, 'Cancelled') // Don't revive cancelled jobs
+                ));
 
-            if (allJobsCompleted) {
-                await db.update(requests)
-                    .set({ status: "Completed", updatedAt: new Date() })
-                    .where(eq(requests.id, jobRecord.requestId));
+            // Mark Request as Completed
+            await db.update(requests)
+                .set({ status: "Completed", updatedAt: new Date() })
+                .where(eq(requests.id, jobRecord.requestId));
 
-                // Create notification for company
-                const companyUserId = await getCompanyUserIdFromJob(jobId);
-                if (companyUserId) {
-                    await createNotification(
-                        companyUserId,
-                        'Job_Update',
-                        'Job Completed',
-                        `Your request ${jobId.slice(0, 8)} has been completed and signed off.`,
-                        `/company/requests/${jobId}`
-                    );
-                }
+            // Create notification for company
+            const companyUserId = await getCompanyUserIdFromJob(jobId);
+            if (companyUserId) {
+                await createNotification(
+                    companyUserId,
+                    'Job_Update',
+                    'Job Completed',
+                    `Your request ${jobId.slice(0, 8)} has been completed and signed off.`,
+                    `/company/requests/${jobId}`
+                );
             }
         }
-
         return { success: true }
     } catch (e) {
         return { success: false, message: "Failed to complete job" }
