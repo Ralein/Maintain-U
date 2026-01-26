@@ -1,7 +1,7 @@
 "use server"
 
 import { db } from "@/lib/db"
-import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable, notifications } from "@/db/schema"
+import { users, companies, technicians, requests, jobs, attendance, jobUpdates, roleEnum, statusEnum, resetStatusEnum, masterTeams, masterTeamMembers, dailyAssignments, substitutions, invoices, payments, ratings, dailyAssignments as dailyAssignmentsTable, notifications, dailyInvites, replacementWorkers, replacementAssignments } from "@/db/schema"
 import { eq, or, and, desc, isNull, sql, ne } from "drizzle-orm"
 import { cookies } from "next/headers"
 
@@ -794,49 +794,69 @@ export async function getCompanyProfileAction() {
 
 // Service Request Actions
 export async function createRequestAction(data: any) {
-    console.log("createRequestAction called with:", JSON.stringify(data, null, 2))
-    const cookieStore = await cookies()
-    const sessionToken = cookieStore.get("session_token")
-
-    if (!sessionToken) {
-        console.log("createRequestAction failed: No session token")
-        return { success: false, message: "Not authenticated" }
-    }
-
-    const session = JSON.parse(sessionToken.value)
-    console.log("createRequestAction session:", JSON.stringify(session, null, 2))
-
-    if (session.role !== 'company') {
-        console.log("createRequestAction failed: Role mismatch. Expected 'company', got:", session.role)
-        return { success: false, message: "Only companies can create requests" }
-    }
-
-    // Get company details (first check companies table for profile)
-    const companyProfile = await db.query.companies.findFirst({
-        where: eq(companies.userId, session.userId)
-    })
-
-    const companyUser = await db.query.users.findFirst({
-        where: eq(users.id, session.userId)
-    })
-
-    if (!companyUser) {
-        console.log("createRequestAction failed: User not found in database. userId:", session.userId)
-        return { success: false, message: "User not found" }
-    }
-
-    if (!companyProfile) {
-        return { success: false, message: "Company profile not found" }
-    }
-
+    console.log("createRequestAction called")
     try {
+        const cookieStore = await cookies()
+        const sessionToken = cookieStore.get("session_token")
+
+        if (!sessionToken) {
+            return { success: false, message: "Not authenticated" }
+        }
+
+        let session;
+        try {
+            session = JSON.parse(sessionToken.value)
+        } catch (e) {
+            return { success: false, message: "Invalid session" }
+        }
+
+        // Get User from database to verify actual role (don't trust cookie)
+        const userResult = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
+        if (userResult.length === 0) {
+            return { success: false, message: "User not found" }
+        }
+        const companyUser = userResult[0]
+
+        // Verify role from database
+        console.log("createRequestAction - User role from DB:", companyUser.role)
+        if (companyUser.role !== 'company') {
+            return { success: false, message: `Only companies can create requests. Your role: ${companyUser.role}` }
+        }
+
+        // Get Company Profile
+        const compResult = await db.select().from(companies).where(eq(companies.userId, session.userId)).limit(1)
+        let companyId = compResult.length > 0 ? compResult[0].id : null
+
+        if (!companyId) {
+            // Auto-recover
+            console.log("createRequestAction: Auto-creating profile for", companyUser.id)
+            try {
+                const [newProfile] = await db.insert(companies).values({
+                    userId: companyUser.id,
+                    companyName: companyUser.name || "Default Company",
+                    email: "pending@example.com",
+                    address: "Address Pending",
+                    industryType: "General"
+                }).returning()
+                companyId = newProfile.id
+            } catch (createErr: any) {
+                console.error("Profile creation failed:", createErr)
+                // Check if it failed because it exists (race condition or weird state)
+                if (createErr.code === '23505') { // Unique constraint violation
+                    const retryComp = await db.select().from(companies).where(eq(companies.userId, session.userId)).limit(1)
+                    if (retryComp.length > 0) companyId = retryComp[0].id
+                }
+                if (!companyId) return { success: false, message: "Failed to create company profile" }
+            }
+        }
+
         const [newReq] = await db.insert(requests).values({
-            companyId: companyProfile.id,
+            companyId: companyId!,
             priority: data.priority,
             description: data.description,
             serviceType: data.serviceType,
             timeSlot: data.timeSlot,
-            preferredDate: data.date, // schema has preferredDate, data has date
+            preferredDate: data.date,
             supervisorName: data.supervisor,
             supervisorPhone: data.supervisorPhone,
             photos: data.photos || [],
@@ -844,9 +864,10 @@ export async function createRequestAction(data: any) {
         }).returning();
 
         return { success: true, id: newReq.id }
+
     } catch (e: any) {
         console.error("Create request error:", e)
-        return { success: false, message: `Failed to create request: ${e.message || JSON.stringify(e)}` }
+        return { success: false, message: `System error: ${e.message}` }
     }
 }
 
@@ -1896,6 +1917,18 @@ export async function completeJobAction(jobId: string, signature: string) {
                     `/company/requests/${jobId}`
                 );
             }
+
+            // Notify all admins about signature
+            const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, 'admin'));
+            for (const admin of admins) {
+                await createNotification(
+                    admin.id,
+                    'Job_Update',
+                    'Job Completed - Signature Received',
+                    `Job ${jobId.slice(0, 8)} completed with signature.`,
+                    `/admin/requests`
+                );
+            }
         }
         return { success: true }
     } catch (e) {
@@ -2248,5 +2281,367 @@ export async function getFeedbackAction() {
     } catch (e) {
         console.error("Fetch feedback error:", e)
         return { success: false, message: "Failed to fetch feedback" }
+    }
+}
+
+// ============ DAILY INVITES ============
+
+// Send daily invites to all accepted master team members
+export async function sendDailyInvitesAction(workDate?: string) {
+    const date = workDate || new Date().toISOString().split('T')[0]
+
+    try {
+        // Get all accepted master team members
+        const members = await db.select({
+            memberId: masterTeamMembers.id,
+            techId: masterTeamMembers.technicianId,
+            userId: technicians.userId
+        })
+            .from(masterTeamMembers)
+            .innerJoin(technicians, eq(masterTeamMembers.technicianId, technicians.id))
+            .where(eq(masterTeamMembers.status, 'Accepted'))
+
+        // Check existing invites for today to avoid duplicates
+        const existingInvites = await db.select({ memberId: dailyInvites.masterTeamMemberId })
+            .from(dailyInvites)
+            .where(eq(dailyInvites.workDate, date))
+
+        const existingMemberIds = existingInvites.map(i => i.memberId)
+
+        // Create new invites
+        const newInvites = members.filter(m => !existingMemberIds.includes(m.memberId))
+
+        if (newInvites.length > 0) {
+            await db.insert(dailyInvites).values(
+                newInvites.map(m => ({
+                    masterTeamMemberId: m.memberId,
+                    technicianId: m.techId,
+                    workDate: date,
+                    status: 'Pending'
+                }))
+            )
+
+            // Send notifications
+            for (const m of newInvites) {
+                await createNotification(
+                    m.userId,
+                    'System',
+                    'Daily Work Invite',
+                    `You have been invited for work on ${date}. Please accept or decline.`,
+                    '/technician/dashboard'
+                )
+            }
+        }
+
+        return { success: true, invitesSent: newInvites.length }
+    } catch (e) {
+        console.error("Send daily invites error:", e)
+        return { success: false, message: "Failed to send daily invites" }
+    }
+}
+
+// Get today's daily invite for technician
+export async function getDailyInviteAction() {
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get("session_token")
+    if (!sessionToken) return { invite: null }
+    const session = JSON.parse(sessionToken.value)
+
+    const today = new Date().toISOString().split('T')[0]
+
+    try {
+        const tech = await db.query.technicians.findFirst({
+            where: eq(technicians.userId, session.userId)
+        })
+        if (!tech) return { invite: null }
+
+        const invite = await db.select({
+            id: dailyInvites.id,
+            status: dailyInvites.status,
+            workDate: dailyInvites.workDate,
+            createdAt: dailyInvites.createdAt
+        })
+            .from(dailyInvites)
+            .where(
+                and(
+                    eq(dailyInvites.technicianId, tech.id),
+                    eq(dailyInvites.workDate, today),
+                    eq(dailyInvites.status, 'Pending')
+                )
+            )
+            .limit(1)
+
+        return { invite: invite[0] || null }
+    } catch (e) {
+        return { invite: null }
+    }
+}
+
+// Respond to daily invite
+export async function respondToDailyInviteAction(inviteId: string, accept: boolean) {
+    try {
+        await db.update(dailyInvites)
+            .set({
+                status: accept ? 'Accepted' : 'Declined',
+                respondedAt: new Date()
+            })
+            .where(eq(dailyInvites.id, inviteId))
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to respond" }
+    }
+}
+
+// Get daily invite statuses for admin
+export async function getDailyInviteStatusesAction(workDate?: string) {
+    const date = workDate || new Date().toISOString().split('T')[0]
+
+    try {
+        const invites = await db.select({
+            id: dailyInvites.id,
+            techId: dailyInvites.technicianId,
+            techName: users.name,
+            status: dailyInvites.status,
+            respondedAt: dailyInvites.respondedAt
+        })
+            .from(dailyInvites)
+            .innerJoin(technicians, eq(dailyInvites.technicianId, technicians.id))
+            .innerJoin(users, eq(technicians.userId, users.id))
+            .where(eq(dailyInvites.workDate, date))
+
+        return {
+            success: true,
+            invites,
+            summary: {
+                total: invites.length,
+                accepted: invites.filter(i => i.status === 'Accepted').length,
+                declined: invites.filter(i => i.status === 'Declined').length,
+                pending: invites.filter(i => i.status === 'Pending').length
+            }
+        }
+    } catch (e) {
+        return { success: false, invites: [] }
+    }
+}
+
+// ============ REPLACEMENT WORKERS ============
+
+// Add technician to replacement worker pool
+export async function addReplacementWorkerAction(technicianId: string, skills?: string[]) {
+    try {
+        await db.insert(replacementWorkers).values({
+            technicianId,
+            skills: skills || [],
+            status: 'Available'
+        }).onConflictDoNothing()
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to add replacement worker" }
+    }
+}
+
+// Get all replacement workers
+export async function getReplacementWorkersAction() {
+    try {
+        const workers = await db.select({
+            id: replacementWorkers.id,
+            techId: replacementWorkers.technicianId,
+            techName: users.name,
+            skills: replacementWorkers.skills,
+            status: replacementWorkers.status,
+            rating: technicians.rating
+        })
+            .from(replacementWorkers)
+            .innerJoin(technicians, eq(replacementWorkers.technicianId, technicians.id))
+            .innerJoin(users, eq(technicians.userId, users.id))
+
+        return { success: true, workers }
+    } catch (e) {
+        return { success: false, workers: [] }
+    }
+}
+
+// Assign replacement worker to a daily assignment
+export async function assignReplacementWorkerAction(
+    replacementWorkerId: string,
+    dailyAssignmentId: string,
+    masterTeamId?: string
+) {
+    try {
+        // Update replacement worker status
+        await db.update(replacementWorkers)
+            .set({ status: 'Assigned' })
+            .where(eq(replacementWorkers.id, replacementWorkerId))
+
+        // Create assignment record
+        await db.insert(replacementAssignments).values({
+            replacementWorkerId,
+            dailyAssignmentId,
+            masterTeamId: masterTeamId || null,
+            status: 'Active'
+        })
+
+        // Get worker details for notification
+        const worker = await db.select({ userId: technicians.userId })
+            .from(replacementWorkers)
+            .innerJoin(technicians, eq(replacementWorkers.technicianId, technicians.id))
+            .where(eq(replacementWorkers.id, replacementWorkerId))
+            .limit(1)
+
+        if (worker[0]) {
+            await createNotification(
+                worker[0].userId,
+                'Job_Update',
+                'Replacement Assignment',
+                'You have been assigned as a replacement worker for today.',
+                '/technician/dashboard'
+            )
+        }
+
+        return { success: true }
+    } catch (e) {
+        return { success: false, message: "Failed to assign replacement worker" }
+    }
+}
+
+// Auto-assign replacement workers when master team unavailable
+export async function autoAssignReplacementWorkersAction(dailyAssignmentId: string, requiredSkills?: string[]) {
+    try {
+        // Get available replacement workers
+        const available = await db.select({
+            id: replacementWorkers.id,
+            techId: replacementWorkers.technicianId,
+            skills: replacementWorkers.skills
+        })
+            .from(replacementWorkers)
+            .where(eq(replacementWorkers.status, 'Available'))
+
+        if (available.length === 0) {
+            return { success: false, message: "No replacement workers available" }
+        }
+
+        // Pick first available (could enhance with skill matching)
+        const selected = available[0]
+
+        // Get the master team ID from the assignment
+        const assignment = await db.query.dailyAssignments.findFirst({
+            where: eq(dailyAssignments.id, dailyAssignmentId)
+        })
+
+        await assignReplacementWorkerAction(
+            selected.id,
+            dailyAssignmentId,
+            assignment?.masterTeamId || undefined
+        )
+
+        return { success: true, assignedWorkerId: selected.id }
+    } catch (e) {
+        return { success: false, message: "Failed to auto-assign" }
+    }
+}
+
+// ============ ENHANCED SIGNATURE SHARING ============
+
+// Get completed job with signature for sharing
+export async function getJobSignatureDetailsAction(jobId: string) {
+    try {
+        const result = await db.select({
+            jobId: jobs.id,
+            signatureUrl: jobs.signatureUrl,
+            completedAt: jobs.completedAt,
+            requestId: requests.id,
+            description: requests.description,
+            serviceType: requests.serviceType,
+            companyName: companies.companyName,
+            companyAddress: companies.address,
+            technicianName: users.name,
+            technicianId: technicians.id
+        })
+            .from(jobs)
+            .innerJoin(requests, eq(jobs.requestId, requests.id))
+            .innerJoin(companies, eq(requests.companyId, companies.id))
+            .leftJoin(technicians, eq(jobs.leadTechnicianId, technicians.id))
+            .leftJoin(users, eq(technicians.userId, users.id))
+            .where(eq(jobs.id, jobId))
+            .limit(1)
+
+        if (result.length === 0) {
+            return { success: false, message: "Job not found" }
+        }
+
+        const job = result[0]
+
+        // Get team members if any
+        const teamMembers = await db.select({
+            name: users.name,
+            skill: technicians.primarySkill
+        })
+            .from(masterTeamMembers)
+            .innerJoin(technicians, eq(masterTeamMembers.technicianId, technicians.id))
+            .innerJoin(users, eq(technicians.userId, users.id))
+            .innerJoin(masterTeams, eq(masterTeamMembers.masterTeamId, masterTeams.id))
+            .where(eq(masterTeams.jobId, jobId))
+
+        return {
+            success: true,
+            signatureDetails: {
+                ...job,
+                teamMembers,
+                signedBy: job.technicianName || 'Team Lead',
+                signedAt: job.completedAt
+            }
+        }
+    } catch (e) {
+        console.error("Get signature details error:", e)
+        return { success: false, message: "Failed to get signature details" }
+    }
+}
+
+// Notify admin and company with signature details
+export async function shareSignatureAction(jobId: string) {
+    try {
+        const details = await getJobSignatureDetailsAction(jobId)
+        if (!details.success) return details
+
+        // Get admin users
+        const admins = await db.select({ id: users.id })
+            .from(users)
+            .where(eq(users.role, 'admin'))
+
+        // Get company user
+        const companyUser = await db.select({ userId: companies.userId })
+            .from(jobs)
+            .innerJoin(requests, eq(jobs.requestId, requests.id))
+            .innerJoin(companies, eq(requests.companyId, companies.id))
+            .where(eq(jobs.id, jobId))
+            .limit(1)
+
+        // Notify admins
+        for (const admin of admins) {
+            await createNotification(
+                admin.id,
+                'Job_Update',
+                'Job Completed - Signature Received',
+                `Job ${jobId.slice(0, 8)} completed. ${details.signatureDetails?.signedBy} signed off.`,
+                `/admin/requests/${jobId}`
+            )
+        }
+
+        // Notify company
+        if (companyUser[0]) {
+            await createNotification(
+                companyUser[0].userId,
+                'Job_Update',
+                'Work Completed - Signature Received',
+                `Your maintenance request has been completed and signed off by ${details.signatureDetails?.signedBy}.`,
+                `/company/requests/${jobId}`
+            )
+        }
+
+        return { success: true, message: "Signature shared with admin and company" }
+    } catch (e) {
+        return { success: false, message: "Failed to share signature" }
     }
 }

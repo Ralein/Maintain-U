@@ -34,16 +34,33 @@ export default function NewRequestPage() {
   }
 
   const handleSubmit = async () => {
+    console.log("handleSubmit called", formData)
     setIsLoading(true)
     try {
-      const res = await api.createRequest(formData)
+      // Filter out empty photos
+      const cleanData = {
+        ...formData,
+        photos: formData.photos.filter(p => p.trim() !== "")
+      }
+      console.log("Sending request with data:", cleanData)
+
+      const res = await api.createRequest(cleanData)
+      console.log("Response received:", res)
+
       if (res.success) {
         toast.success("Request created successfully")
         router.push(`/company/requests/${res.id}`)
       } else {
-        toast.error(res.message || "Failed to create request")
+        console.error("Request failed:", res.message)
+        if (res.message === "Not authenticated" || res.message === "User not found") {
+          toast.error("Session expired. Please login again.")
+          router.push("/login")
+        } else {
+          toast.error(res.message || "Failed to create request")
+        }
       }
     } catch (e) {
+      console.error("Exception during request:", e)
       toast.error("Failed to create request")
     } finally {
       setIsLoading(false)

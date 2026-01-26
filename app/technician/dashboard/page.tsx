@@ -15,15 +15,17 @@ export default function TechnicianDashboard() {
   const [techName, setTechName] = useState("Technician")
 
   const [invite, setInvite] = useState<any>(null)
+  const [dailyInvite, setDailyInvite] = useState<any>(null)
   const [processingInvite, setProcessingInvite] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [res, profileRes, inviteRes] = await Promise.all([
+        const [res, profileRes, inviteRes, dailyInviteRes] = await Promise.all([
           api.getJobs(),
           getTechnicianProfileAction(),
-          api.getTechnicianInvite()
+          api.getTechnicianInvite(),
+          api.getDailyInvite()
         ])
 
         if (profileRes.success && profileRes.data?.name) {
@@ -34,9 +36,12 @@ export default function TechnicianDashboard() {
           setInvite(inviteRes.invite)
         }
 
+        if (dailyInviteRes.invite) {
+          setDailyInvite(dailyInviteRes.invite)
+        }
+
         if (res.jobs) {
           setJobs(res.jobs)
-          // Find prioritized active job
           const active = res.jobs.find((j: any) => j.status === 'In Progress' || j.status === 'In_Progress') ||
             res.jobs.find((j: any) => j.status === 'Accepted' || j.status === 'Team_Confirmed')
           setActiveJob(active)
@@ -55,10 +60,24 @@ export default function TechnicianDashboard() {
       const res = await api.respondToInvite(invite.id, accept)
       if (res.success) {
         setInvite(null)
-        // toast.success(accept ? "Accepted Invitation!" : "Declined Invitation") // user toast if available or just update UI
       }
     } catch (e) {
       console.error("Invite response error", e)
+    } finally {
+      setProcessingInvite(false)
+    }
+  }
+
+  const handleDailyInviteResponse = async (accept: boolean) => {
+    if (!dailyInvite) return
+    setProcessingInvite(true)
+    try {
+      const res = await api.respondToDailyInvite(dailyInvite.id, accept)
+      if (res.success) {
+        setDailyInvite(null)
+      }
+    } catch (e) {
+      console.error("Daily invite response error", e)
     } finally {
       setProcessingInvite(false)
     }
@@ -99,7 +118,7 @@ export default function TechnicianDashboard() {
       </header>
 
       <main className="px-6 space-y-8">
-        {/* Invite Card */}
+        {/* Master Team Invite Card */}
         {invite && (
           <div className="glass-card p-6 rounded-3xl relative overflow-hidden group border-orange-500/30 shadow-lg shadow-orange-500/10 animate-in slide-in-from-top-4 duration-500 bg-gradient-to-br from-orange-500/5 to-transparent">
             <div className="absolute top-0 right-0 p-4 opacity-50">
@@ -124,6 +143,40 @@ export default function TechnicianDashboard() {
                   className="flex-1 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-sm shadow-lg shadow-orange-500/20 hover:scale-[1.02] transition-transform disabled:opacity-50"
                 >
                   {processingInvite ? "Processing..." : "Accept & Join"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Daily Work Invite Card */}
+        {dailyInvite && (
+          <div className="glass-card p-6 rounded-3xl relative overflow-hidden group border-green-500/30 shadow-lg shadow-green-500/10 animate-in slide-in-from-top-4 duration-500 bg-gradient-to-br from-green-500/5 to-transparent">
+            <div className="absolute top-0 right-0 p-4 opacity-50">
+              <Calendar className="w-12 h-12 text-green-500 rotate-12" />
+            </div>
+            <div className="relative z-10">
+              <h2 className="text-xl font-bold text-foreground mb-2">Daily Work Invite</h2>
+              <p className="text-sm text-muted-foreground mb-2">
+                You are invited to work on <span className="font-bold text-foreground">{dailyInvite.workDate}</span>
+              </p>
+              <p className="text-xs text-muted-foreground mb-6">
+                Please confirm your availability for today's assignments.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleDailyInviteResponse(false)}
+                  disabled={processingInvite}
+                  className="flex-1 py-3 rounded-xl border border-border bg-background/50 text-foreground font-semibold text-sm hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  Not Available
+                </button>
+                <button
+                  onClick={() => handleDailyInviteResponse(true)}
+                  disabled={processingInvite}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-sm shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-transform disabled:opacity-50"
+                >
+                  {processingInvite ? "Processing..." : "I'm Available"}
                 </button>
               </div>
             </div>

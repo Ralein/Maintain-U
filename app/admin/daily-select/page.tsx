@@ -210,11 +210,39 @@ export default function DailySelectPage() {
             <main className="px-6 py-4 space-y-6">
                 {/* Statistics / Info */}
                 {activeTab === "daily" ? (
-                    <div className="flex items-center justify-between px-1">
-                        <div className="text-sm font-medium text-muted-foreground">
-                            Available: <span className="text-foreground font-bold">{masterTeamMembers.length}</span>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between px-1">
+                            <div className="text-sm font-medium text-muted-foreground">
+                                Available: <span className="text-foreground font-bold">{masterTeamMembers.filter(m => m.status === 'Accepted').length}</span>
+                                <span className="mx-2 text-muted-foreground/50">|</span>
+                                Pending: <span className="text-yellow-500 font-bold">{masterTeamMembers.filter(m => m.status === 'Invited').length}</span>
+                                <span className="mx-2 text-muted-foreground/50">|</span>
+                                Declined: <span className="text-red-500 font-bold">{masterTeamMembers.filter(m => m.status === 'Declined').length}</span>
+                            </div>
                         </div>
                         <div className="flex items-center gap-3">
+                            <button
+                                onClick={async () => {
+                                    setIsProcessing(true)
+                                    try {
+                                        const res = await api.sendDailyInvites(selectedDate)
+                                        if (res.success) {
+                                            toast.success(`Sent ${res.invitesSent} daily invites`)
+                                            loadData()
+                                        } else {
+                                            toast.error(res.message || "Failed to send invites")
+                                        }
+                                    } catch (e) {
+                                        toast.error("Error sending invites")
+                                    } finally {
+                                        setIsProcessing(false)
+                                    }
+                                }}
+                                disabled={isProcessing}
+                                className="text-xs font-bold text-green-600 bg-green-500/10 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition-colors flex items-center gap-1 disabled:opacity-50"
+                            >
+                                <BiCalendarCheck className="w-4 h-4" /> Send Daily Invites
+                            </button>
                             <button
                                 onClick={openReplacementModal}
                                 className="text-xs font-bold text-blue-600 bg-blue-500/10 px-3 py-1.5 rounded-lg hover:bg-blue-500/20 transition-colors flex items-center gap-1"
@@ -223,16 +251,16 @@ export default function DailySelectPage() {
                             </button>
                             <button
                                 onClick={handleSelectAllDaily}
-                                className="text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                                className="text-xs font-bold text-primary hover:text-primary/80 transition-colors ml-auto"
                             >
-                                {dailySelectedIds.length === masterTeamMembers.length ? "Deselect All" : "Select All"}
+                                {dailySelectedIds.length === masterTeamMembers.filter(m => m.status === 'Accepted').length ? "Deselect All" : "Select Available"}
                             </button>
                         </div>
                     </div>
                 ) : (
                     <div className="px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-600 dark:text-blue-400 font-medium flex gap-2">
                         <Users className="w-4 h-4 flex-shrink-0" />
-                        Select technicians to include in the Main Roster. Only these members will appear in Daily Scheduling.
+                        Select technicians to include in the Main Roster. They will receive an invitation to join.
                     </div>
                 )}
 

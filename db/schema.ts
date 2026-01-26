@@ -138,6 +138,36 @@ export const masterTeamMembers = pgTable("master_team_members", {
     addedAt: timestamp("added_at").defaultNow(),
 });
 
+// Daily invites - sent every day to master team members
+export const dailyInvites = pgTable("daily_invites", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    masterTeamMemberId: uuid("master_team_member_id").references(() => masterTeamMembers.id).notNull(),
+    technicianId: uuid("technician_id").references(() => technicians.id).notNull(),
+    workDate: date("work_date").notNull(),
+    status: text("status").default("Pending"), // Pending, Accepted, Declined
+    respondedAt: timestamp("responded_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Replacement workers - backup pool when master team unavailable
+export const replacementWorkers = pgTable("replacement_workers", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    technicianId: uuid("technician_id").references(() => technicians.id).notNull().unique(),
+    status: text("status").default("Available"), // Available, Assigned, Unavailable
+    skills: text("skills").array(),
+    addedAt: timestamp("added_at").defaultNow(),
+});
+
+// Track when replacement workers are assigned to jobs
+export const replacementAssignments = pgTable("replacement_assignments", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    replacementWorkerId: uuid("replacement_worker_id").references(() => replacementWorkers.id).notNull(),
+    dailyAssignmentId: uuid("daily_assignment_id").references(() => dailyAssignments.id).notNull(),
+    masterTeamId: uuid("master_team_id").references(() => masterTeams.id), // Works under this master team
+    assignedAt: timestamp("assigned_at").defaultNow(),
+    status: text("status").default("Active"), // Active, Completed
+});
+
 export const dailyAssignments = pgTable("daily_assignments", {
     id: uuid("id").defaultRandom().primaryKey(),
     jobId: uuid("job_id").references(() => jobs.id).notNull(),

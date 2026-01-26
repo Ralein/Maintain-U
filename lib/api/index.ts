@@ -337,9 +337,63 @@ export const api = {
     const { markAllNotificationsAsReadAction } = await import("@/lib/actions")
     return markAllNotificationsAsReadAction()
   },
+
   async submitRating(jobId: string, technicianId: string, score: number, review?: string) {
     const { submitRatingAction } = await import("@/lib/actions")
     return submitRatingAction(jobId, technicianId, score, review)
+  },
+
+  // Daily Invites
+  async sendDailyInvites(workDate?: string) {
+    const { sendDailyInvitesAction } = await import("@/lib/actions")
+    return sendDailyInvitesAction(workDate)
+  },
+
+  async getDailyInvite() {
+    const { getDailyInviteAction } = await import("@/lib/actions")
+    return getDailyInviteAction()
+  },
+
+  async respondToDailyInvite(inviteId: string, accept: boolean) {
+    const { respondToDailyInviteAction } = await import("@/lib/actions")
+    return respondToDailyInviteAction(inviteId, accept)
+  },
+
+  async getDailyInviteStatuses(workDate?: string) {
+    const { getDailyInviteStatusesAction } = await import("@/lib/actions")
+    return getDailyInviteStatusesAction(workDate)
+  },
+
+  // Replacement Workers
+  async addReplacementWorker(technicianId: string, skills?: string[]) {
+    const { addReplacementWorkerAction } = await import("@/lib/actions")
+    return addReplacementWorkerAction(technicianId, skills)
+  },
+
+  async getReplacementWorkers() {
+    const { getReplacementWorkersAction } = await import("@/lib/actions")
+    return getReplacementWorkersAction()
+  },
+
+  async assignReplacementWorker(workerId: string, assignmentId: string, masterTeamId?: string) {
+    const { assignReplacementWorkerAction } = await import("@/lib/actions")
+    return assignReplacementWorkerAction(workerId, assignmentId, masterTeamId)
+  },
+
+  async autoAssignReplacement(assignmentId: string, skills?: string[]) {
+    const { autoAssignReplacementWorkersAction } = await import("@/lib/actions")
+    return autoAssignReplacementWorkersAction(assignmentId, skills)
+  },
+
+  // Signature Sharing
+  async getJobSignatureDetails(jobId: string) {
+    const { getJobSignatureDetailsAction } = await import("@/lib/actions")
+    return getJobSignatureDetailsAction(jobId)
+  },
+
+  async shareSignature(jobId: string) {
+    const { shareSignatureAction } = await import("@/lib/actions")
+    return shareSignatureAction(jobId)
   },
 }
 
